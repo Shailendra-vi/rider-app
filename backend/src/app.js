@@ -2,6 +2,7 @@ import express from 'express';
 import { pool } from './db/pool.js';
 import { generationRoutes } from './generation/routes.js';
 import { orderRoutes } from './orders/routes.js';
+import { riderRoutes } from './riders/routes.js';
 
 export function createApp() {
   const app = express();
@@ -10,6 +11,7 @@ export function createApp() {
 
   app.use(generationRoutes);
   app.use(orderRoutes);
+  app.use(riderRoutes);
 
   // Test DB connection
   app.get('/health', (req, res) => {

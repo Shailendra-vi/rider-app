@@ -12,4 +12,7 @@ export const config = {
   env,
   port: Number(process.env.PORT) || 3000,
   databaseUrl: env === 'test' ? required('TEST_DATABASE_URL') : required('DATABASE_URL'),
+  riders: {
+    leaseMinutes: Number(process.env.RIDER_LEASE_MINUTES) || 15,
+  },
 };

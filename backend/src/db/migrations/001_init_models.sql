@@ -25,14 +25,19 @@ CREATE TABLE riders (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+--   pauses:           [{ from_date, to_date, recorded_at }]
+--   skips:            [{ service_date, recorded_at }]
+--   address_history:  [{ address, effective_from, recorded_at }]
 CREATE TABLE subscriptions (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id       UUID NOT NULL REFERENCES customers(id),
   plan_id           UUID NOT NULL REFERENCES plans(id),
   start_date        DATE NOT NULL,
   weekday_mask      SMALLINT NOT NULL,   -- bit0=Mon .. bit6=Sun
-  delivery_address  TEXT NOT NULL,
   is_active         BOOLEAN NOT NULL DEFAULT true,
+  pauses            JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(pauses) = 'array'),
+  skips             JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(skips) = 'array'),
+  address_history   JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(address_history) = 'array'),
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

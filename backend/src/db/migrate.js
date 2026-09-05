@@ -1,12 +1,12 @@
 // Applies numbered .sql files from ./migrations in order, once each.
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { pool } from './pool.js';
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), 'migrations');
 
-async function run() {
+export async function runMigrations() {
   const client = await pool.connect();
   try {
     await client.query(`
@@ -28,7 +28,6 @@ async function run() {
         await client.query(sql);
         await client.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [file]);
         await client.query('COMMIT');
-        console.log(`applied ${file}`);
       } catch (err) {
         await client.query('ROLLBACK');
         throw err;
@@ -39,9 +38,13 @@ async function run() {
   }
 }
 
-run()
-  .catch((err) => {
-    console.error(err);
-    process.exitCode = 1;
-  })
-  .finally(() => pool.end());
+const invokedDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedDirectly) {
+  runMigrations()
+    .then(() => console.log('migrations up to date'))
+    .catch((err) => {
+      console.error(err);
+      process.exitCode = 1;
+    })
+    .finally(() => pool.end());
+}

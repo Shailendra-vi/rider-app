@@ -1,0 +1,29 @@
+{
+  "name": "rider-app",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@reduxjs/toolkit": "^2.12.0",
+    "expo": "~57.0.20",
+    "expo-crypto": "~57.0.2",
+    "expo-location": "~57.0.16",
+    "expo-sqlite": "~57.0.2",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-redux": "^9.3.0"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.0"
+  }
+}

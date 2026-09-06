@@ -123,7 +123,6 @@ describe('claimNextOrder', () => {
     const first = await claimNextOrder(riderA);
     expect(first.id).toBe(orderId);
 
-    // Rider A goes dark: force their lease into the past instead of waiting 15 minutes.
     await pool.query("UPDATE deliveries SET expires_at = now() - interval '1 minute' WHERE order_id = $1", [orderId]);
 
     const second = await claimNextOrder(riderB);

@@ -76,7 +76,6 @@ describe('generateOrdersForDate', () => {
     await seedSubscriptions(5);
     const asOf = new Date();
 
-    //  crash mid-run
     const { rows: subs } = await pool.query('SELECT id, customer_id FROM subscriptions ORDER BY id LIMIT 2');
     for (const s of subs) {
       await pool.query(

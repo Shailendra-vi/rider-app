@@ -119,5 +119,6 @@ export function createOutbox({
     pendingCount: () => adapter.countByStates(UNSETTLED),
     conflicts: () => adapter.byStates([STATE.CONFLICT, STATE.DEAD]),
     clearSettled: () => adapter.deleteByStates([STATE.CONFIRMED]),
+    reset: () => adapter.deleteByStates(Object.values(STATE)),
   };
 }

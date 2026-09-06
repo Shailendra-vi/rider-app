@@ -1,7 +1,7 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { setOnline, signOut } from '../store/sessionSlice';
-import { dismissConflicts, enqueueAdvance, enqueueClaim } from '../store/outboxSlice';
+import { dismissConflicts, enqueueAdvance, enqueueClaim, resetApp } from '../store/outboxSlice';
 import { useLocationPings } from '../hooks/useLocationPings';
 import OrderCard from '../components/OrderCard';
 import SyncBar from '../components/SyncBar';
@@ -21,6 +21,18 @@ export default function ShiftScreen() {
       </View>
     );
   }
+
+  const confirmReset = () =>
+    Alert.alert(
+      'Reset app data?',
+      pending > 0
+        ? `${pending} action${pending === 1 ? '' : 's'} have not reached the server yet. Resetting discards them and logs you out.`
+        : 'This clears the local queue and logs you out.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Reset', style: 'destructive', onPress: () => dispatch(resetApp()) },
+      ],
+    );
 
   const online = rider.is_online;
   const claimQueued = rows.some((r) => r.kind === 'CLAIM');
@@ -100,6 +112,10 @@ export default function ShiftScreen() {
           <Text style={styles.claimText}>{claimQueued ? 'Claiming…' : 'Claim next order'}</Text>
         </Pressable>
       )}
+
+      <Pressable style={styles.reset} onPress={confirmReset}>
+        <Text style={styles.resetText}>Reset app data</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -205,5 +221,16 @@ const styles = StyleSheet.create({
     color: colors.accentInk,
     fontWeight: '800',
     fontSize: 16,
+  },
+  reset: {
+    alignSelf: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginTop: 8,
+  },
+  resetText: {
+    color: colors.inkMuted,
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

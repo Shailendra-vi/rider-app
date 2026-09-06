@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getOutbox } from '../outbox';
-import { refreshMe } from './sessionSlice';
+import { refreshMe, signOut } from './sessionSlice';
 
 export const refreshOutbox = createAsyncThunk('outbox/refresh', async () => {
   const outbox = getOutbox();
@@ -45,12 +45,21 @@ export const dismissConflicts = createAsyncThunk('outbox/dismissConflicts', asyn
   await dispatch(refreshOutbox());
 });
 
+export const resetApp = createAsyncThunk('outbox/resetApp', async (_, { dispatch }) => {
+  await getOutbox()?.reset();
+  await dispatch(refreshOutbox());
+  await dispatch(signOut());
+});
+
 const outboxSlice = createSlice({
   name: 'outbox',
-  initialState: { ready: false, pending: 0, rows: [], conflicts: [], draining: false },
+  initialState: { ready: false, initError: null, pending: 0, rows: [], conflicts: [], draining: false },
   reducers: {
     setReady(state, action) {
       state.ready = action.payload;
+    },
+    setInitError(state, action) {
+      state.initError = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -72,5 +81,5 @@ const outboxSlice = createSlice({
   },
 });
 
-export const { setReady } = outboxSlice.actions;
+export const { setReady, setInitError } = outboxSlice.actions;
 export default outboxSlice.reducer;

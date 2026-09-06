@@ -15,4 +15,7 @@ export const config = {
   riders: {
     leaseMinutes: Number(process.env.RIDER_LEASE_MINUTES) || 15,
   },
+  payments: {
+    webhookSecret: process.env.PAYMENT_WEBHOOK_SECRET || 'dev-webhook-secret',
+  },
 };

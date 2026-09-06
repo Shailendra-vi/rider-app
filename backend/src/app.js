@@ -3,15 +3,33 @@ import { pool } from './db/pool.js';
 import { generationRoutes } from './generation/routes.js';
 import { orderRoutes } from './orders/routes.js';
 import { riderRoutes } from './riders/routes.js';
+import { opsRoutes } from './ops/routes.js';
+import { paymentRoutes } from './payments/routes.js';
 
 export function createApp() {
   const app = express();
   app.disable('x-powered-by');
-  app.use(express.json());
+  app.use(
+    express.json({
+      verify: (req, res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, X-Rider-Id');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+  });
 
   app.use(generationRoutes);
   app.use(orderRoutes);
   app.use(riderRoutes);
+  app.use(opsRoutes);
+  app.use(paymentRoutes);
 
   // Test DB connection
   app.get('/health', (req, res) => {

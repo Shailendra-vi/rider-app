@@ -10,6 +10,8 @@ function todayIST() {
   return new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
 }
 
+const DATE_TABS = new Set(['orders', 'payments']);
+
 const TABS = [
   { id: 'orders', label: 'Orders' },
   { id: 'riders', label: 'Riders' },
@@ -103,10 +105,14 @@ export default function App() {
         <div className="topbar">
           <h1>{TABS.find((t) => t.id === tab)?.label}</h1>
           <div className="controls">
-            <input type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} />
-            <button disabled={busy} onClick={() => run(() => api.generate(serviceDate))}>
-              Generate orders
-            </button>
+            {DATE_TABS.has(tab) && (
+              <input type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} />
+            )}
+            {tab === 'orders' && (
+              <button disabled={busy} onClick={() => run(() => api.generate(serviceDate))}>
+                Generate orders
+              </button>
+            )}
             <button className="primary" disabled={busy} onClick={reload}>
               Refresh
             </button>

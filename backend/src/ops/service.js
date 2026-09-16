@@ -27,7 +27,7 @@ export async function createCustomer({ name, phone }) {
 }
 
 export async function createRider({ name, phone }) {
-  const { rows } = await pool.query('INSERT INTO riders (name, phone) VALUES ($1,$2) RETURNING *', [name, phone]);
+  const { rows } = await pool.query('INSERT INTO riders (name, phone) VALUES ($1,$2) RETURNING id, name, phone, status, is_online, created_at', [name, phone]);
   return rows[0];
 }
 
@@ -190,7 +190,9 @@ export async function getReconciliation(serviceDate) {
 
 export async function listRidersDetailed() {
   const { rows } = await pool.query(
-    `SELECT r.*, o.id AS current_order_id, o.status AS current_order_status,
+    `SELECT r.id, r.name, r.email, r.phone, r.status, r.is_online, r.created_at,
+            r.email_verified_at, r.phone_verified_at, r.identity_verification_status,
+            o.id AS current_order_id, o.status AS current_order_status,
             l.lat AS last_lat, l.lng AS last_lng, l.recorded_at AS last_seen_at
        FROM riders r
        LEFT JOIN deliveries d ON d.rider_id = r.id AND d.released_at IS NULL

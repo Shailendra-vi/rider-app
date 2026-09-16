@@ -1,6 +1,7 @@
 import { pool } from '../db/pool.js';
 import { config } from '../config.js';
 import { allowedTransitions } from '../orders/stateMachine.js';
+import { PUBLIC_RIDER_FIELDS } from '../auth/service.js';
 
 export async function listRiders() {
   const { rows } = await pool.query('SELECT id, name, phone, is_online FROM riders ORDER BY name');
@@ -9,14 +10,14 @@ export async function listRiders() {
 
 export async function setShift(riderId, online) {
   const { rows } = await pool.query(
-    'UPDATE riders SET is_online = $2 WHERE id = $1 RETURNING id, name, phone, is_online',
+    'UPDATE riders SET is_online = $2, updated_at = now(), last_seen_at = now() WHERE id = $1 RETURNING id, name, phone, is_online',
     [riderId, online],
   );
   return rows[0];
 }
 
 export async function getRiderState(riderId) {
-  const { rows: riders } = await pool.query('SELECT id, name, phone, is_online FROM riders WHERE id = $1', [riderId]);
+  const { rows: riders } = await pool.query(`SELECT ${PUBLIC_RIDER_FIELDS} FROM riders WHERE id = $1`, [riderId]);
   const rider = riders[0];
 
   const { rows } = await pool.query(
@@ -37,6 +38,7 @@ export async function getRiderState(riderId) {
 const MAX_PING_AGE_MINUTES = 10;
 
 async function renewLease(riderId) {
+  await pool.query('UPDATE riders SET last_seen_at = now() WHERE id = $1', [riderId]);
   const expiresAt = new Date(Date.now() + config.riders.leaseMinutes * 60_000);
   const { rows } = await pool.query(
     `UPDATE deliveries SET expires_at = $2

@@ -12,7 +12,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await pool.query('TRUNCATE orders, deliveries, payments, subscriptions, plans, riders, customers RESTART IDENTITY CASCADE');
+  await pool.query('TRUNCATE rider_auth_challenges, rider_auth_limits, orders, deliveries, payments, subscriptions, plans, riders, customers RESTART IDENTITY CASCADE');
 });
 
 afterAll(async () => {

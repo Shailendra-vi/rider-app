@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { claimNextOrder } from './claimNextOrder.js';
 import { listRiders, setShift, getRiderState, recordLocations, sendHeartbeat } from './service.js';
-import { requireRider } from '../lib/riderAuth.js';
+import { requireRider, requireActiveRider } from '../lib/riderAuth.js';
+import { requireOps } from '../lib/opsAuth.js';
 
 export const riderRoutes = Router();
 
-riderRoutes.get('/riders', async (req, res, next) => {
+riderRoutes.get('/riders', requireOps, async (req, res, next) => {
   try {
     res.json(await listRiders());
   } catch (err) {
@@ -21,7 +22,7 @@ riderRoutes.get('/rider/me', requireRider, async (req, res, next) => {
   }
 });
 
-riderRoutes.post('/rider/shift', requireRider, async (req, res, next) => {
+riderRoutes.post('/rider/shift', requireRider, requireActiveRider, async (req, res, next) => {
   try {
     const { online } = req.body ?? {};
     if (typeof online !== 'boolean') {
@@ -33,7 +34,7 @@ riderRoutes.post('/rider/shift', requireRider, async (req, res, next) => {
   }
 });
 
-riderRoutes.post('/rider/claim', requireRider, async (req, res, next) => {
+riderRoutes.post('/rider/claim', requireRider, requireActiveRider, async (req, res, next) => {
   try {
     if (!req.rider.is_online) {
       return res.status(409).json({ error: { code: 'RIDER_OFFLINE', message: 'Go online before claiming orders' } });
@@ -46,7 +47,7 @@ riderRoutes.post('/rider/claim', requireRider, async (req, res, next) => {
   }
 });
 
-riderRoutes.post('/rider/locations', requireRider, async (req, res, next) => {
+riderRoutes.post('/rider/locations', requireRider, requireActiveRider, async (req, res, next) => {
   try {
     const { pings } = req.body ?? {};
     if (!Array.isArray(pings)) {
@@ -58,7 +59,7 @@ riderRoutes.post('/rider/locations', requireRider, async (req, res, next) => {
   }
 });
 
-riderRoutes.post('/rider/heartbeat', requireRider, async (req, res, next) => {
+riderRoutes.post('/rider/heartbeat', requireRider, requireActiveRider, async (req, res, next) => {
   try {
     res.json(await sendHeartbeat(req.riderId));
   } catch (err) {

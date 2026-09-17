@@ -1,156 +1,92 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from '../api/client';
+import { api, authApi } from '../api/client';
+import { getRevision, getSession, setSession } from '../auth/sessionRuntime';
+import { sessionStorage } from '../auth/storage';
 
-const RIDER_KEY = 'riderapp.riderId';
+let storageQueue = Promise.resolve();
+const persist = value => {
+  storageQueue = storageQueue.catch(() => {}).then(() => sessionStorage.write(value));
+  return storageQueue;
+};
 
-export const hydrateSession = createAsyncThunk('session/hydrate', async () => {
-  return AsyncStorage.getItem(RIDER_KEY);
+export const hydrateSession = createAsyncThunk('session/hydrate', async (_, { rejectWithValue }) => {
+  const revision = getRevision();
+  try {
+    const raw = await sessionStorage.read();
+    if (revision !== getRevision()) return rejectWithValue({ stale: true });
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved.token || !saved.riderId || new Date(saved.expiresAt).getTime() <= Date.now()) { await persist(null); return null; }
+    setSession(saved);
+    try { return await api.getMe(saved.riderId); }
+    catch (error) { return rejectWithValue({ message: error.message }); }
+  } catch { return rejectWithValue({ message: 'Could not restore your session. Please sign in again.' }); }
 });
 
-export const fetchRiders = createAsyncThunk('session/fetchRiders', async (_, { rejectWithValue }) => {
+export const acceptSession = createAsyncThunk('session/accept', async (result, { rejectWithValue }) => {
+  const saved = { token: result.token, riderId: result.rider.id, expiresAt: result.expiresAt };
+  setSession(saved);
+  const revision = getRevision();
   try {
-    return await api.listRiders();
-  } catch (err) {
-    return rejectWithValue(err.timedOut ? 'Request timed out' : err.message);
-  }
-});
-
-export const selectRider = createAsyncThunk('session/selectRider', async (riderId, { rejectWithValue }) => {
-  try {
-    const me = await api.getMe(riderId);
-    await AsyncStorage.setItem(RIDER_KEY, riderId);
-    return me;
-  } catch (err) {
-    return rejectWithValue(err.timedOut ? 'Request timed out' : err.message);
-  }
-});
-
-export const refreshMe = createAsyncThunk('session/refreshMe', async (_, { getState, rejectWithValue }) => {
-  const { riderId } = getState().session;
-  try {
-    return await api.getMe(riderId);
-  } catch (err) {
-    return rejectWithValue(err.timedOut ? 'Request timed out' : err.message);
+    await persist(JSON.stringify(saved));
+    if (revision !== getRevision()) return rejectWithValue({ stale: true });
+    return { rider: result.rider, currentOrder: null };
+  } catch {
+    if (revision === getRevision()) { setSession(null); await persist(null).catch(() => {}); }
+    return rejectWithValue({ message: 'Could not securely save your session. Please try again.' });
   }
 });
 
 export const signOut = createAsyncThunk('session/signOut', async () => {
-  await AsyncStorage.removeItem(RIDER_KEY);
+  const logout = getSession() ? authApi.logout().catch(() => {}) : Promise.resolve();
+  setSession(null);
+  await persist(null);
+  await logout;
 });
+export const expireSession = createAsyncThunk('session/expire', async () => { setSession(null); await persist(null); });
 
-export const setOnline = createAsyncThunk('session/setOnline', async (online, { getState, rejectWithValue }) => {
-  const { riderId } = getState().session;
-  try {
-    return await api.setShift(riderId, online);
-  } catch (err) {
-    return rejectWithValue(err.timedOut ? 'Request timed out' : err.message);
-  }
-});
+function riderTask(name, fn) {
+  return createAsyncThunk(name, async (arg, { rejectWithValue }) => {
+    const session = getSession();
+    const revision = getRevision();
+    try {
+      if (!session) return rejectWithValue({ stale: true });
+      const data = await fn(session.riderId, arg);
+      if (revision !== getRevision()) return rejectWithValue({ stale: true });
+      return { data, riderId: session.riderId };
+    } catch (error) { return rejectWithValue({ stale: revision !== getRevision(), message: error.message }); }
+  });
+}
 
-export const sendLocationPings = createAsyncThunk('session/sendLocationPings', async (pings, { getState }) => {
-  const { riderId } = getState().session;
-  return api.sendPings(riderId, pings);
-});
+export const refreshMe = riderTask('session/refresh', id => api.getMe(id));
+export const setOnline = riderTask('session/online', (id, online) => api.setShift(id, online));
+export const sendLocationPings = riderTask('session/locations', (id, pings) => api.sendPings(id, pings));
+export const sendHeartbeat = riderTask('session/heartbeat', id => api.heartbeat(id));
 
-export const sendHeartbeat = createAsyncThunk('session/sendHeartbeat', async (_, { getState }) => {
-  const { riderId } = getState().session;
-  return api.heartbeat(riderId);
-});
-
-const initialState = {
-  hydrated: false,
-  riderId: null,
-  rider: null,
-  currentOrder: null,
-  riders: [],
-  ridersStatus: 'idle',
-  shiftPending: false,
-  lastPingAt: null,
-  lastPingFailed: false,
-  error: null,
-};
-
-const sessionSlice = createSlice({
-  name: 'session',
-  initialState,
-  reducers: {
-    clearError(state) {
-      state.error = null;
-    },
-  },
-  extraReducers: (builder) => {
+const initialState = { hydrated: false, riderId: null, rider: null, currentOrder: null, shiftPending: false, lastPingAt: null, lastPingFailed: false, error: null };
+const slice = createSlice({
+  name: 'session', initialState,
+  reducers: { clearError(state) { state.error = null; } },
+  extraReducers: builder => {
     builder
-      .addCase(hydrateSession.fulfilled, (state, action) => {
-        state.hydrated = true;
-        state.riderId = action.payload;
+      .addCase(hydrateSession.fulfilled, (state, { payload }) => { state.hydrated = true; if (payload) { state.rider = payload.rider; state.riderId = payload.rider.id; state.currentOrder = payload.currentOrder; } })
+      .addCase(hydrateSession.rejected, (state, action) => { state.hydrated = true; if (!action.payload?.stale) state.error = action.payload?.message; })
+      .addCase(acceptSession.fulfilled, (state, { payload }) => { state.hydrated = true; state.rider = payload.rider; state.riderId = payload.rider.id; state.currentOrder = null; state.error = null; })
+      .addCase(signOut.pending, () => ({ ...initialState, hydrated: true }))
+      .addCase(expireSession.pending, () => ({ ...initialState, hydrated: true, error: 'Your session has ended. Please sign in again.' }))
+      .addCase(setOnline.pending, state => { state.shiftPending = true; state.error = null; })
+      .addCase(setOnline.fulfilled, (state, { payload }) => { if (state.riderId !== payload.riderId) return; state.shiftPending = false; state.rider = { ...state.rider, ...payload.data }; })
+      .addCase(refreshMe.fulfilled, (state, { payload }) => { if (state.riderId && state.riderId !== payload.riderId) return; state.riderId = payload.riderId; state.rider = payload.data.rider; state.currentOrder = payload.data.currentOrder; state.error = null; })
+      .addMatcher(action => [sendHeartbeat.fulfilled.type, sendLocationPings.fulfilled.type].includes(action.type), (state, { payload }) => {
+        if (state.riderId !== payload.riderId) return;
+        state.lastPingAt = Date.now(); state.lastPingFailed = false;
+        if (state.currentOrder && payload.data?.leaseRenewedUntil) state.currentOrder.claim_expires_at = payload.data.leaseRenewedUntil;
       })
-      .addCase(hydrateSession.rejected, (state) => {
-        state.hydrated = true;
-      })
-
-      .addCase(fetchRiders.pending, (state) => {
-        state.ridersStatus = 'loading';
-        state.error = null;
-      })
-      .addCase(fetchRiders.fulfilled, (state, action) => {
-        state.ridersStatus = 'ok';
-        state.riders = action.payload;
-      })
-      .addCase(fetchRiders.rejected, (state, action) => {
-        state.ridersStatus = 'error';
-        state.error = action.payload ?? 'Could not load riders';
-      })
-
-      .addCase(signOut.fulfilled, () => ({ ...initialState, hydrated: true }))
-
-      .addCase(setOnline.pending, (state) => {
-        state.shiftPending = true;
-        state.error = null;
-      })
-      .addCase(setOnline.fulfilled, (state, action) => {
-        state.shiftPending = false;
-        state.rider = action.payload;
-      })
-      .addCase(setOnline.rejected, (state, action) => {
-        state.shiftPending = false;
-        state.error = action.payload ?? 'Could not change shift';
-      })
-
-      .addMatcher(
-        (action) => [sendLocationPings.fulfilled.type, sendHeartbeat.fulfilled.type].includes(action.type),
-        (state, action) => {
-          state.lastPingAt = Date.now();
-          state.lastPingFailed = false;
-          if (state.currentOrder && action.payload?.leaseRenewedUntil) {
-            state.currentOrder.claim_expires_at = action.payload.leaseRenewedUntil;
-          }
-        },
-      )
-      .addMatcher(
-        (action) => [sendLocationPings.rejected.type, sendHeartbeat.rejected.type].includes(action.type),
-        (state) => {
-          state.lastPingFailed = true;
-        },
-      )
-
-      .addMatcher(
-        (action) => [selectRider.fulfilled.type, refreshMe.fulfilled.type].includes(action.type),
-        (state, action) => {
-          state.rider = action.payload.rider;
-          state.riderId = action.payload.rider.id;
-          state.currentOrder = action.payload.currentOrder;
-          state.error = null;
-        },
-      )
-      .addMatcher(
-        (action) => [selectRider.rejected.type, refreshMe.rejected.type].includes(action.type),
-        (state, action) => {
-          state.error = action.payload ?? 'Could not load rider';
-        },
-      );
+      .addMatcher(action => [setOnline.rejected.type, refreshMe.rejected.type, sendHeartbeat.rejected.type, sendLocationPings.rejected.type].includes(action.type), (state, action) => {
+        if (action.payload?.stale) return;
+        state.shiftPending = false; state.error = action.payload?.message; state.lastPingFailed = true;
+      });
   },
 });
-
-export const { clearError } = sessionSlice.actions;
-export default sessionSlice.reducer;
+export const { clearError } = slice.actions;
+export default slice.reducer;

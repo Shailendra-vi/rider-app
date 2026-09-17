@@ -1,22 +1,26 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getOutbox } from '../outbox';
 import { refreshMe, signOut } from './sessionSlice';
+import { getSession } from '../auth/sessionRuntime';
 
 export const refreshOutbox = createAsyncThunk('outbox/refresh', async () => {
+  const ownerId = getSession()?.riderId;
   const outbox = getOutbox();
-  if (!outbox) return { pending: 0, rows: [], conflicts: [] };
+  if (!outbox) return { ownerId, pending: 0, rows: [], conflicts: [] };
   const [rows, conflicts, pending] = await Promise.all([
     outbox.unsettled(),
     outbox.conflicts(),
     outbox.pendingCount(),
   ]);
-  return { pending, rows, conflicts };
+  return { ownerId, pending, rows, conflicts };
 });
 
 export const drainOutbox = createAsyncThunk('outbox/drain', async (_, { dispatch, getState }) => {
+  const ownerId = getSession()?.riderId;
   const outbox = getOutbox();
   if (!outbox) return;
   await outbox.drain();
+  if (ownerId !== getSession()?.riderId) return;
   await dispatch(refreshOutbox());
   if (getState().session.riderId) await dispatch(refreshMe());
 });
@@ -53,8 +57,12 @@ export const resetApp = createAsyncThunk('outbox/resetApp', async (_, { dispatch
 
 const outboxSlice = createSlice({
   name: 'outbox',
-  initialState: { ready: false, initError: null, pending: 0, rows: [], conflicts: [], draining: false },
+  initialState: { ownerId: null, ready: false, initError: null, pending: 0, rows: [], conflicts: [], draining: false },
   reducers: {
+    setOwner(state, action) {
+      state.ownerId = action.payload; state.ready = false; state.initError = null;
+      state.pending = 0; state.rows = []; state.conflicts = []; state.draining = false;
+    },
     setReady(state, action) {
       state.ready = action.payload;
     },
@@ -65,6 +73,7 @@ const outboxSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(refreshOutbox.fulfilled, (state, action) => {
+        if (state.ownerId !== action.payload.ownerId) return;
         state.pending = action.payload.pending;
         state.rows = action.payload.rows;
         state.conflicts = action.payload.conflicts;
@@ -81,5 +90,5 @@ const outboxSlice = createSlice({
   },
 });
 
-export const { setReady, setInitError } = outboxSlice.actions;
+export const { setReady, setInitError, setOwner } = outboxSlice.actions;
 export default outboxSlice.reducer;

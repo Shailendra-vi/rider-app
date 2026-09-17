@@ -2,8 +2,10 @@ import * as Crypto from 'expo-crypto';
 import { createOutbox } from './core';
 import { createSqliteAdapter } from './adapters/sqlite';
 import { api } from '../api/client';
+import { getSession } from '../auth/sessionRuntime';
 
-let instance = null;
+const instances = new Map();
+const opening = new Map();
 const listeners = new Set();
 
 function notify() {
@@ -15,9 +17,9 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
-function makeTransport(getRiderId) {
+function makeTransport(riderId) {
   return async (row) => {
-    const riderId = getRiderId();
+    if (getSession()?.riderId !== riderId) throw Object.assign(new Error('Sign in to resume your saved actions'), { status: 401 });
     const body = JSON.parse(row.body);
 
     if (row.kind === 'CLAIM') return api.claim(riderId);
@@ -33,22 +35,22 @@ function makeTransport(getRiderId) {
   };
 }
 
-export async function initOutbox(getRiderId) {
-  if (instance) return instance;
-
-  const adapter = await createSqliteAdapter();
-  instance = createOutbox({
-    adapter,
-    transport: makeTransport(getRiderId),
-    onChange: notify,
-    newKey: () => Crypto.randomUUID(),
-  });
-
-  await instance.recover();
-  notify();
-  return instance;
+export async function initOutbox(riderId) {
+  if (!/^[a-f0-9-]{36}$/i.test(riderId)) throw new Error('A verified rider account is required');
+  if (instances.has(riderId)) return instances.get(riderId);
+  if (opening.has(riderId)) return opening.get(riderId);
+  const promise = (async () => {
+    const adapter = await createSqliteAdapter(`riderapp-${riderId}.db`);
+    const instance = createOutbox({ adapter, transport: makeTransport(riderId), onChange: notify, newKey: () => Crypto.randomUUID() });
+    await instance.recover();
+    instances.set(riderId, instance);
+    notify();
+    return instance;
+  })();
+  opening.set(riderId, promise);
+  try { return await promise; } finally { opening.delete(riderId); }
 }
 
 export function getOutbox() {
-  return instance;
+  return instances.get(getSession()?.riderId) || null;
 }

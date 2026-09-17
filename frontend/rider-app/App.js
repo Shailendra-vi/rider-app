@@ -1,154 +1,59 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store } from './src/store';
-import { hydrateSession, refreshMe, selectRider } from './src/store/sessionSlice';
-import { drainOutbox, refreshOutbox, setInitError, setReady } from './src/store/outboxSlice';
+import { expireSession, hydrateSession, refreshMe, signOut } from './src/store/sessionSlice';
+import { drainOutbox, refreshOutbox, setOwner, setReady } from './src/store/outboxSlice';
 import { initOutbox, subscribe } from './src/outbox';
-import RiderPickerScreen from './src/screens/RiderPickerScreen';
+import { onSessionExpired } from './src/auth/sessionRuntime';
+import AuthScreen, { PendingAccountScreen } from './src/screens/auth/AuthScreen';
 import ShiftScreen from './src/screens/ShiftScreen';
-import { colors, radius } from './src/theme';
+import { Button, Link } from './src/auth/components/Controls';
 
-const DRAIN_INTERVAL_MS = 10_000;
-const REFRESH_INTERVAL_MS = 10_000;
+function DeliveryRoot({ riderId }) {
+  const dispatch = useDispatch();
+  const [ready, readySet] = useState(false);
+  const [error, errorSet] = useState(null);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    let unsubscribe;
+    let timer;
+    dispatch(setOwner(riderId)); readySet(false); errorSet(null);
+    initOutbox(riderId).then(() => {
+      if (cancelled) return;
+      readySet(true); dispatch(setReady(true)); dispatch(refreshOutbox());
+      unsubscribe = subscribe(() => dispatch(refreshOutbox()));
+      timer = setInterval(() => dispatch(drainOutbox()), 10000);
+    }).catch(() => { if (!cancelled) errorSet('Could not open your saved delivery actions. Please try again.'); });
+    return () => { cancelled = true; unsubscribe?.(); clearInterval(timer); dispatch(setOwner(null)); };
+  }, [riderId, dispatch, retry]);
+  if (error) return <View style={{ flex: 1, justifyContent: 'center', padding: 30, gap: 15 }}><Text>{error}</Text><Button onPress={() => setRetry(retry + 1)}>Try again</Button><Link onPress={() => dispatch(signOut())}>Sign out</Link></View>;
+  if (!ready) return <ActivityIndicator style={{ flex: 1 }} color="#9b4f28" />;
+  return <ShiftScreen />;
+}
 
 function Root() {
   const dispatch = useDispatch();
-  const { hydrated, riderId, rider } = useSelector((s) => s.session);
-  const { ready: outboxReady, initError } = useSelector((s) => s.outbox);
-  const unsubscribeRef = useRef(null);
-
-  const bootOutbox = useCallback(async () => {
-    dispatch(setInitError(null));
-    try {
-      await initOutbox(() => store.getState().session.riderId);
-      dispatch(setReady(true));
-      dispatch(refreshOutbox());
-      unsubscribeRef.current?.();
-      unsubscribeRef.current = subscribe(() => dispatch(refreshOutbox()));
-    } catch (err) {
-      dispatch(setInitError(err?.message ?? 'Could not open on-device storage'));
-    }
-  }, [dispatch]);
-
+  const { hydrated, rider, riderId } = useSelector(state => state.session);
   useEffect(() => {
+    const unsubscribe = onSessionExpired(() => dispatch(expireSession()));
     dispatch(hydrateSession());
+    return unsubscribe;
   }, [dispatch]);
-
   useEffect(() => {
-    bootOutbox();
-    return () => {
-      unsubscribeRef.current?.();
-      unsubscribeRef.current = null;
-    };
-  }, [bootOutbox]);
-
-  useEffect(() => {
-    if (hydrated && riderId && !rider) dispatch(selectRider(riderId));
-  }, [dispatch, hydrated, riderId, rider]);
-
-  useEffect(() => {
-    if (!outboxReady || !riderId) return undefined;
-    const timer = setInterval(() => dispatch(drainOutbox()), DRAIN_INTERVAL_MS);
+    if (!riderId) return;
+    const timer = setInterval(() => dispatch(refreshMe()), 10000);
     return () => clearInterval(timer);
-  }, [dispatch, outboxReady, riderId]);
-
-  useEffect(() => {
-    if (!riderId) return undefined;
-    const timer = setInterval(() => dispatch(refreshMe()), REFRESH_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [dispatch, riderId]);
-
-  if (initError) {
-    return (
-      <View style={styles.centered}>
-        <View style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Cannot start</Text>
-          <Text style={styles.errorBody}>
-            The on-device queue that keeps your actions safe offline could not be opened. Nothing is
-            lost, but the app will not accept actions until this works.
-          </Text>
-          <Text style={styles.errorDetail}>{initError}</Text>
-          <Pressable
-            style={({ pressed }) => [styles.retry, pressed && styles.retryPressed]}
-            onPress={bootOutbox}
-          >
-            <Text style={styles.retryText}>Try again</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
-
-  if (!hydrated || !outboxReady) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={colors.accent} />
-      </View>
-    );
-  }
-
-  return riderId ? <ShiftScreen /> : <RiderPickerScreen />;
+  }, [riderId, dispatch]);
+  if (!hydrated) return <ActivityIndicator style={{ flex: 1 }} color="#9b4f28" />;
+  if (!rider) return <AuthScreen />;
+  if (rider.status !== 'active' || rider.identity_verification_status !== 'verified') return <PendingAccountScreen />;
+  return <DeliveryRoot key={riderId} riderId={riderId} />;
 }
 
 export default function App() {
-  return (
-    <Provider store={store}>
-      <View style={styles.container}>
-        <Root />
-        <StatusBar style="auto" />
-      </View>
-    </Provider>
-  );
+  return <Provider store={store}><SafeAreaProvider><View style={{ flex: 1, backgroundColor: '#f7f5f2' }}><Root /><StatusBar style="dark" /></View></SafeAreaProvider></Provider>;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  errorCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 20,
-    gap: 10,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.danger,
-  },
-  errorBody: {
-    fontSize: 14,
-    color: colors.ink,
-    lineHeight: 20,
-  },
-  errorDetail: {
-    fontFamily: 'monospace',
-    fontSize: 12,
-    color: colors.inkMuted,
-  },
-  retry: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  retryPressed: {
-    backgroundColor: '#ab5f32',
-  },
-  retryText: {
-    color: colors.accentInk,
-    fontWeight: '800',
-  },
-});

@@ -7,6 +7,7 @@ export const OUTCOME = {
 
 export function classify(action, { payload, error } = {}) {
   if (error) {
+    if ([401, 403, 429].includes(error.status)) return { outcome: OUTCOME.RETRY, reason: 'AUTH_OR_RATE_LIMIT' };
     if (error.timedOut) return { outcome: OUTCOME.RETRY, reason: 'TIMEOUT' };
 
     if (!error.status) return { outcome: OUTCOME.RETRY, reason: 'NETWORK' };

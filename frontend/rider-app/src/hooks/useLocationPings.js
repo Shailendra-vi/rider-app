@@ -16,6 +16,8 @@ export function useLocationPings(order) {
     if (!order || TERMINAL_STATUSES.has(order.status)) return undefined;
 
     const tracking = order.status === 'OUT_FOR_DELIVERY';
+    let cancelled = false;
+    let running = false;
 
     const tickHeartbeat = async () => {
       try {
@@ -27,6 +29,7 @@ export function useLocationPings(order) {
       try {
         if (!permissionGranted.current) {
           const { status } = await Location.requestForegroundPermissionsAsync();
+          if (cancelled) return;
           permissionGranted.current = status === 'granted';
         }
         if (!permissionGranted.current) return;
@@ -34,6 +37,7 @@ export function useLocationPings(order) {
         const position = await Location.getCurrentPositionAsync({ 
           accuracy: Location.Accuracy.Balanced 
         });
+        if (cancelled) return;
         buffer.current.push({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
@@ -50,11 +54,15 @@ export function useLocationPings(order) {
       } catch {}
     };
 
-    const tick = tracking ? tickLocation : tickHeartbeat;
+    const tick = async () => {
+      if (cancelled || running) return;
+      running = true;
+      try { await (tracking ? tickLocation() : tickHeartbeat()); } finally { running = false; }
+    };
     if (!tracking) buffer.current = [];
 
     tick();
     const timer = setInterval(tick, TICK_MS);
-    return () => clearInterval(timer);
+    return () => { cancelled = true; clearInterval(timer); buffer.current = []; };
   }, [dispatch, order?.id, order?.status]);
 }

@@ -27,7 +27,9 @@
         {
           "locationWhenInUsePermission": "Riderapp uses your location to share your live position while you're out for delivery."
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-secure-store"
     ]
   }
 }

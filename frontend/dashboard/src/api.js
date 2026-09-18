@@ -24,8 +24,6 @@ async function request(path, { method = 'GET', body, riderId } = {}) {
   return payload;
 }
 
-
-
 export const api = {
   plans: () => request('/plans'),
   createPlan: (body) => request('/plans', { method: 'POST', body }),
@@ -38,14 +36,22 @@ export const api = {
 
   subscriptions: () => request('/subscriptions'),
   createSubscription: (body) => request('/subscriptions', { method: 'POST', body }),
-  addSubscriptionEvent: (id, kind, payload) => request(`/subscriptions/${id}/events`, { method: 'POST', body: { kind, payload } }),
-  cancelSubscriptionEvent: (id, kind, entryId) => request(`/subscriptions/${id}/events/cancel`, { method: 'POST', body: { kind, entryId } }),
+  addSubscriptionEvent: (id, kind, payload) =>
+    request(`/subscriptions/${id}/events`, { method: 'POST', body: { kind, payload } }),
+  cancelSubscriptionEvent: (id, kind, entryId) =>
+    request(`/subscriptions/${id}/events/cancel`, {
+      method: 'POST',
+      body: { kind, entryId },
+    }),
 
   orders: (serviceDate) => request(`/orders?serviceDate=${serviceDate}`),
-  generate: (serviceDate) => request('/ops/generation', { method: 'POST', body: { serviceDate } }),
-  transition: (orderId, to) => request(`/orders/${orderId}/transitions`, { method: 'POST', body: { to } }),
+  generate: (serviceDate) =>
+    request('/ops/generation', { method: 'POST', body: { serviceDate } }),
+  transition: (orderId, to) =>
+    request(`/orders/${orderId}/transitions`, { method: 'POST', body: { to } }),
 
   payments: () => request('/ops/payments'),
   simulateWebhook: (body) => request('/ops/payments/simulate', { method: 'POST', body }),
-  reconciliation: (serviceDate) => request(`/ops/reconciliation?serviceDate=${serviceDate}`),
+  reconciliation: (serviceDate) =>
+    request(`/ops/reconciliation?serviceDate=${serviceDate}`),
 };

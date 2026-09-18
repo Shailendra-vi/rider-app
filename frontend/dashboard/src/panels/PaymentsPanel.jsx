@@ -42,7 +42,9 @@ export default function PaymentsPanel({ payments, customers, serviceDate, onActi
               {payments.balances.map((b) => (
                 <tr key={b.id}>
                   <td>{b.name}</td>
-                  <td className={Number(b.balance_paise) < 0 ? 'muted' : ''}>{paise(b.balance_paise)}</td>
+                  <td className={Number(b.balance_paise) < 0 ? 'muted' : ''}>
+                    {paise(b.balance_paise)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -50,22 +52,32 @@ export default function PaymentsPanel({ payments, customers, serviceDate, onActi
         )}
       </section>
 
-      <section className="card" style={{ marginTop: 16 }}>
+      <section
+        className="card"
+        style={{ marginTop: 16 }}
+      >
         <div className="panel-head">
           <h2>Simulate payment webhook</h2>
         </div>
         <p className="hint">
-          Signs the event with the server's own webhook secret and posts it through the real{' '}
-          <code>/webhooks/payments</code> handler — the same signature check, timestamp window, and{' '}
-          <code>provider_event_id</code> dedup a real provider would go through.
+          Signs the event with the server's own webhook secret and posts it through the
+          real <code>/webhooks/payments</code> handler — the same signature check,
+          timestamp window, and <code>provider_event_id</code> dedup a real provider would
+          go through.
         </p>
         <div className="formrow">
           <label>
             Customer
-            <select value={form.customerId} onChange={(e) => setForm({ ...form, customerId: e.target.value })}>
+            <select
+              value={form.customerId}
+              onChange={(e) => setForm({ ...form, customerId: e.target.value })}
+            >
               <option value="">Choose customer…</option>
               {customers.map((c) => (
-                <option key={c.id} value={c.id}>
+                <option
+                  key={c.id}
+                  value={c.id}
+                >
                   {c.name}
                 </option>
               ))}
@@ -73,9 +85,15 @@ export default function PaymentsPanel({ payments, customers, serviceDate, onActi
           </label>
           <label>
             Type
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+            <select
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value })}
+            >
               {TYPES.map((t) => (
-                <option key={t} value={t}>
+                <option
+                  key={t}
+                  value={t}
+                >
                   {t}
                 </option>
               ))}
@@ -99,7 +117,10 @@ export default function PaymentsPanel({ payments, customers, serviceDate, onActi
         </div>
       </section>
 
-      <section className="card" style={{ marginTop: 16 }}>
+      <section
+        className="card"
+        style={{ marginTop: 16 }}
+      >
         <div className="panel-head">
           <h2>Recent ledger</h2>
           <span className="count-pill">{payments.ledger.length}</span>
@@ -124,7 +145,9 @@ export default function PaymentsPanel({ payments, customers, serviceDate, onActi
                   <td className="small">{p.type}</td>
                   <td>{paise(p.amount_paise)}</td>
                   <td className="small muted">{p.status}</td>
-                  <td className="muted small">{new Date(p.occurred_at).toLocaleString()}</td>
+                  <td className="muted small">
+                    {new Date(p.occurred_at).toLocaleString()}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -132,10 +155,16 @@ export default function PaymentsPanel({ payments, customers, serviceDate, onActi
         )}
       </section>
 
-      <section className="card" style={{ marginTop: 16 }}>
+      <section
+        className="card"
+        style={{ marginTop: 16 }}
+      >
         <div className="panel-head">
           <h2>Reconciliation — {serviceDate}</h2>
-          <button disabled={checking} onClick={runReconciliation}>
+          <button
+            disabled={checking}
+            onClick={runReconciliation}
+          >
             {checking ? 'Checking…' : 'Run reconciliation'}
           </button>
         </div>
@@ -164,8 +193,9 @@ export default function PaymentsPanel({ payments, customers, serviceDate, onActi
           </table>
         )}
         <p className="hint">
-          Pure reads only — this endpoint never writes. It's a check on whether the correctness
-          claims (exactly one charge per delivered order, no orphaned claims) actually hold.
+          Pure reads only — this endpoint never writes. It's a check on whether the
+          correctness claims (exactly one charge per delivered order, no orphaned claims)
+          actually hold.
         </p>
       </section>
     </>

@@ -1,7 +1,10 @@
 import { api } from '../api';
 
 export default function OrdersPanel({ orders, serviceDate, onAction }) {
-  const counts = orders.reduce((acc, o) => ({ ...acc, [o.status]: (acc[o.status] ?? 0) + 1 }), {});
+  const counts = orders.reduce(
+    (acc, o) => ({ ...acc, [o.status]: (acc[o.status] ?? 0) + 1 }),
+    {},
+  );
 
   return (
     <section className="card">
@@ -13,7 +16,10 @@ export default function OrdersPanel({ orders, serviceDate, onAction }) {
       {orders.length > 0 && (
         <div className="pills">
           {Object.entries(counts).map(([status, n]) => (
-            <span key={status} className={`badge badge-${status}`}>
+            <span
+              key={status}
+              className={`badge badge-${status}`}
+            >
               {status.replace(/_/g, ' ')} · {n}
             </span>
           ))}
@@ -39,7 +45,9 @@ export default function OrdersPanel({ orders, serviceDate, onAction }) {
                 <td>{o.customer_name}</td>
                 <td className="muted small">{o.delivery_address}</td>
                 <td>
-                  <span className={`badge badge-${o.status}`}>{o.status.replace(/_/g, ' ')}</span>
+                  <span className={`badge badge-${o.status}`}>
+                    {o.status.replace(/_/g, ' ')}
+                  </span>
                 </td>
                 <td>{o.rider_name ?? <span className="muted">—</span>}</td>
                 <td className="actions">
@@ -47,7 +55,10 @@ export default function OrdersPanel({ orders, serviceDate, onAction }) {
                     <span className="muted small">terminal</span>
                   ) : (
                     o.allowedTransitions.map((to) => (
-                      <button key={to} onClick={() => onAction(() => api.transition(o.id, to))}>
+                      <button
+                        key={to}
+                        onClick={() => onAction(() => api.transition(o.id, to))}
+                      >
                         {to.replace(/_/g, ' ')}
                       </button>
                     ))
@@ -60,8 +71,9 @@ export default function OrdersPanel({ orders, serviceDate, onAction }) {
       )}
 
       <p className="hint">
-        Buttons come from the server's <code>allowedTransitions</code> — the dashboard can't offer an
-        illegal move. Move an order to <b>PREPARING</b> to make it claimable from the rider app.
+        Buttons come from the server's <code>allowedTransitions</code> — the dashboard
+        can't offer an illegal move. Move an order to <b>PREPARING</b> to make it
+        claimable from the rider app.
       </p>
     </section>
   );

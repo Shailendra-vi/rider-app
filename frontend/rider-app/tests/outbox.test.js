@@ -26,7 +26,6 @@ function harness({ handlers = [], clock = { t: 0 }, random = () => 1 } = {}) {
   return { outbox, adapter, sent, clock };
 }
 
-
 const timeout = () => {
   const err = new Error('Request timed out');
   err.timedOut = true;
@@ -41,8 +40,6 @@ const httpError = (status, code, details) => () => {
   throw err;
 };
 
-
-
 describe('outbox', () => {
   it('sends a queued action once and confirms it', async () => {
     const { outbox, sent } = harness({ handlers: [{ id: 'order-1' }] });
@@ -55,7 +52,6 @@ describe('outbox', () => {
     expect(row.result_code).toBe('OK');
   });
 
-
   it('treats a claim that found nothing as confirmed, not failed', async () => {
     const { outbox } = harness({ handlers: [null] });
     await outbox.enqueue({ kind: 'CLAIM' });
@@ -66,7 +62,6 @@ describe('outbox', () => {
     expect(row.result_code).toBe('NO_ORDER');
   });
 
-
   it('retries a timed-out action with the same key and ends confirmed', async () => {
     const clock = { t: 0 };
     const { outbox, sent } = harness({
@@ -74,7 +69,11 @@ describe('outbox', () => {
       handlers: [timeout, { id: 'order-1', alreadyApplied: true }],
     });
 
-    await outbox.enqueue({ kind: 'TRANSITION', orderId: 'order-1', targetStatus: 'DELIVERED' });
+    await outbox.enqueue({
+      kind: 'TRANSITION',
+      orderId: 'order-1',
+      targetStatus: 'DELIVERED',
+    });
     await outbox.drain();
 
     let [row] = await outbox.all();
@@ -93,11 +92,13 @@ describe('outbox', () => {
     expect(await outbox.all()).toHaveLength(1);
   });
 
-
-
   it('recovers rows left mid-flight by an app kill', async () => {
     const { outbox, adapter } = harness({ handlers: [timeout] });
-    await outbox.enqueue({ kind: 'TRANSITION', orderId: 'o1', targetStatus: 'DELIVERED' });
+    await outbox.enqueue({
+      kind: 'TRANSITION',
+      orderId: 'o1',
+      targetStatus: 'DELIVERED',
+    });
 
     const [before] = await adapter.all();
     await adapter.update(before.id, { state: STATE.SENDING });
@@ -115,13 +116,20 @@ describe('outbox', () => {
     expect(row.idempotency_key).toBe(before.idempotency_key);
   });
 
-
   it('does not let a later action overtake a stalled one', async () => {
     const clock = { t: 0 };
     const { outbox, sent } = harness({ clock, handlers: [timeout] });
 
-    await outbox.enqueue({ kind: 'TRANSITION', orderId: 'o1', targetStatus: 'OUT_FOR_DELIVERY' });
-    await outbox.enqueue({ kind: 'TRANSITION', orderId: 'o1', targetStatus: 'DELIVERED' });
+    await outbox.enqueue({
+      kind: 'TRANSITION',
+      orderId: 'o1',
+      targetStatus: 'OUT_FOR_DELIVERY',
+    });
+    await outbox.enqueue({
+      kind: 'TRANSITION',
+      orderId: 'o1',
+      targetStatus: 'DELIVERED',
+    });
 
     await outbox.drain();
 
@@ -133,11 +141,13 @@ describe('outbox', () => {
     expect(rows[1].attempts).toBe(0);
   });
 
-
-
   it('marks a stale claim as a conflict and never retries it', async () => {
     const { outbox, sent } = harness({ handlers: [httpError(409, 'STALE_CLAIM')] });
-    await outbox.enqueue({ kind: 'TRANSITION', orderId: 'o1', targetStatus: 'DELIVERED' });
+    await outbox.enqueue({
+      kind: 'TRANSITION',
+      orderId: 'o1',
+      targetStatus: 'DELIVERED',
+    });
 
     await outbox.drain();
     await outbox.drain();
@@ -152,7 +162,11 @@ describe('outbox', () => {
     const { outbox } = harness({
       handlers: [httpError(409, 'INVALID_TRANSITION', { current: 'CANCELLED' })],
     });
-    await outbox.enqueue({ kind: 'TRANSITION', orderId: 'o1', targetStatus: 'DELIVERED' });
+    await outbox.enqueue({
+      kind: 'TRANSITION',
+      orderId: 'o1',
+      targetStatus: 'DELIVERED',
+    });
     await outbox.drain();
 
     const [row] = await outbox.all();
@@ -160,11 +174,13 @@ describe('outbox', () => {
     expect(row.user_message).toMatch(/cancelled by ops/i);
   });
 
-
-
   it('gives up on errors a retry cannot fix', async () => {
     const { outbox, sent } = harness({ handlers: [httpError(404, 'NOT_FOUND')] });
-    await outbox.enqueue({ kind: 'TRANSITION', orderId: 'gone', targetStatus: 'DELIVERED' });
+    await outbox.enqueue({
+      kind: 'TRANSITION',
+      orderId: 'gone',
+      targetStatus: 'DELIVERED',
+    });
 
     await outbox.drain();
     await outbox.drain();
@@ -210,8 +226,6 @@ describe('outbox', () => {
     expect(row.state).toBe(STATE.QUEUED);
   });
 
-
-
   it('runs one drain at a time so an action cannot be sent twice', async () => {
     let release;
     const gate = new Promise((r) => {
@@ -238,12 +252,14 @@ describe('outbox', () => {
     expect(sent).toHaveLength(1);
   });
 
-
-  
   it('keeps pending count honest for the UI', async () => {
     const { outbox } = harness({ handlers: [timeout] });
     await outbox.enqueue({ kind: 'CLAIM' });
-    await outbox.enqueue({ kind: 'TRANSITION', orderId: 'o1', targetStatus: 'DELIVERED' });
+    await outbox.enqueue({
+      kind: 'TRANSITION',
+      orderId: 'o1',
+      targetStatus: 'DELIVERED',
+    });
 
     expect(await outbox.pendingCount()).toBe(2);
     await outbox.drain();

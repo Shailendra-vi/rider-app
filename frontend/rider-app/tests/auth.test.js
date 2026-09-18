@@ -1,9 +1,20 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { maskContact, normalizeContact, validatePassword } from '../src/auth/validation';
-import { getRevision, getSession, setSession, onSessionExpired } from '../src/auth/sessionRuntime';
+import {
+  getRevision,
+  getSession,
+  setSession,
+  onSessionExpired,
+} from '../src/auth/sessionRuntime';
 
-beforeEach(() => { setSession(null); vi.stubEnv('EXPO_PUBLIC_API_URL', 'http://localhost:3000'); });
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+beforeEach(() => {
+  setSession(null);
+  vi.stubEnv('EXPO_PUBLIC_API_URL', 'http://localhost:3000');
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 describe('authentication input', () => {
   it('normalizes email and phone while rejecting ambiguous contacts', () => {
@@ -14,7 +25,9 @@ describe('authentication input', () => {
   });
   it('validates password confirmation and masks contact details', () => {
     expect(() => validatePassword('short', 'short')).toThrow('12');
-    expect(() => validatePassword('long enough password', 'different password')).toThrow('match');
+    expect(() => validatePassword('long enough password', 'different password')).toThrow(
+      'match',
+    );
     expect(maskContact('phone', '+919876543210')).not.toContain('987654');
     expect(maskContact('email', 'rider@example.com')).toBe('ri•••@example.com');
   });
@@ -22,7 +35,9 @@ describe('authentication input', () => {
 
 describe('authenticated transport', () => {
   it('sends bearer tokens and rejects a different account before sending', async () => {
-    const fetch = vi.fn(async () => new Response(JSON.stringify({ rider: { id: 'a' } }), { status: 200 }));
+    const fetch = vi.fn(
+      async () => new Response(JSON.stringify({ rider: { id: 'a' } }), { status: 200 }),
+    );
     vi.stubGlobal('fetch', fetch);
     const { api } = await import('../src/api/client');
     setSession({ riderId: 'a', token: 'secret' });
@@ -34,7 +49,15 @@ describe('authenticated transport', () => {
   });
   it('discards late responses after an account switch', async () => {
     let resolve;
-    vi.stubGlobal('fetch', vi.fn(() => new Promise(done => { resolve = done; })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise((done) => {
+            resolve = done;
+          }),
+      ),
+    );
     const { api } = await import('../src/api/client');
     setSession({ riderId: 'a', token: 'old' });
     const pending = api.getMe('a');
@@ -46,13 +69,24 @@ describe('authenticated transport', () => {
     expect(getSession().riderId).toBe('b');
   });
   it('expires the current session on 401, but not public login failures', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: { message: 'Invalid', code: 'SESSION_INVALID' } }), { status: 401 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ error: { message: 'Invalid', code: 'SESSION_INVALID' } }),
+            { status: 401 },
+          ),
+      ),
+    );
     const { api, authApi } = await import('../src/api/client');
     const expired = vi.fn();
     const unsubscribe = onSessionExpired(expired);
     setSession({ riderId: 'a', token: 'token' });
     await expect(api.getMe('a')).rejects.toMatchObject({ status: 401 });
-    await expect(authApi.post('signin/password', {})).rejects.toMatchObject({ status: 401 });
+    await expect(authApi.post('signin/password', {})).rejects.toMatchObject({
+      status: 401,
+    });
     expect(expired).toHaveBeenCalledTimes(1);
     unsubscribe();
   });

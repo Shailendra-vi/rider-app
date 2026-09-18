@@ -6,9 +6,15 @@ import { api } from '../src/api/client';
 import { createSqliteAdapter } from '../src/outbox/adapters/sqlite';
 
 vi.mock('expo-crypto', () => ({ randomUUID: () => Math.random().toString() }));
-vi.mock('../src/outbox/adapters/sqlite', () => ({ createSqliteAdapter: vi.fn(async () => createMemoryAdapter()) }));
-vi.mock('../src/api/client', () => ({ api: { claim: vi.fn(async () => null), transition: vi.fn() } }));
-beforeEach(() => { setSession(null); });
+vi.mock('../src/outbox/adapters/sqlite', () => ({
+  createSqliteAdapter: vi.fn(async () => createMemoryAdapter()),
+}));
+vi.mock('../src/api/client', () => ({
+  api: { claim: vi.fn(async () => null), transition: vi.fn() },
+}));
+beforeEach(() => {
+  setSession(null);
+});
 
 describe('account-owned delivery queues', () => {
   it('keeps queued work with its original rider across logout and account switching', async () => {

@@ -41,7 +41,12 @@ function cancelledAt(entry, list) {
 
 export default function SubscriptionsPanel({ subscriptions, onAction }) {
   const [openId, setOpenId] = useState(null);
-  const [form, setForm] = useState({ from: todayIST(), to: todayIST(), skip: todayIST(), address: '' });
+  const [form, setForm] = useState({
+    from: todayIST(),
+    to: todayIST(),
+    skip: todayIST(),
+    address: '',
+  });
   const today = todayIST();
   const open = subscriptions.find((s) => s.id === openId);
 
@@ -55,60 +60,79 @@ export default function SubscriptionsPanel({ subscriptions, onAction }) {
       {subscriptions.length === 0 ? (
         <div className="empty">No subscriptions yet — add one from Create data.</div>
       ) : (
-      <table>
-        <thead>
-          <tr>
-            <th>Customer</th>
-            <th>Plan</th>
-            <th>Days</th>
-            <th>Address today</th>
-            <th>History</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {subscriptions.map((s) => (
-            <tr key={s.id}>
-              <td>
-                {s.customer_name}
-                {!s.is_active && <span className="muted small"> (cancelled)</span>}
-              </td>
-              <td className="small">{s.plan_code}</td>
-              <td className="small nowrap">{weekdaysOf(s.weekday_mask)}</td>
-              <td className="muted small">{currentAddress(s.address_history, today)}</td>
-              <td>
-                <div className="pills" style={{ marginBottom: 0 }}>
-                  {activeCount(s.pauses) > 0 && <span className="pill">{activeCount(s.pauses)} pause</span>}
-                  {activeCount(s.skips) > 0 && <span className="pill">{activeCount(s.skips)} skip</span>}
-                  {s.address_history.length > 1 && <span className="pill">{s.address_history.length} addr</span>}
-                  {activeCount(s.pauses) === 0 && activeCount(s.skips) === 0 && s.address_history.length <= 1 && (
-                    <span className="muted small">—</span>
-                  )}
-                </div>
-              </td>
-              <td>
-                <button className={openId === s.id ? '' : 'primary'} onClick={() => setOpenId(openId === s.id ? null : s.id)}>
-                  {openId === s.id ? 'Close' : 'Change'}
-                </button>
-              </td>
+        <table>
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Plan</th>
+              <th>Days</th>
+              <th>Address today</th>
+              <th>History</th>
+              <th />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {subscriptions.map((s) => (
+              <tr key={s.id}>
+                <td>
+                  {s.customer_name}
+                  {!s.is_active && <span className="muted small"> (cancelled)</span>}
+                </td>
+                <td className="small">{s.plan_code}</td>
+                <td className="small nowrap">{weekdaysOf(s.weekday_mask)}</td>
+                <td className="muted small">
+                  {currentAddress(s.address_history, today)}
+                </td>
+                <td>
+                  <div
+                    className="pills"
+                    style={{ marginBottom: 0 }}
+                  >
+                    {activeCount(s.pauses) > 0 && (
+                      <span className="pill">{activeCount(s.pauses)} pause</span>
+                    )}
+                    {activeCount(s.skips) > 0 && (
+                      <span className="pill">{activeCount(s.skips)} skip</span>
+                    )}
+                    {s.address_history.length > 1 && (
+                      <span className="pill">{s.address_history.length} addr</span>
+                    )}
+                    {activeCount(s.pauses) === 0 &&
+                      activeCount(s.skips) === 0 &&
+                      s.address_history.length <= 1 && (
+                        <span className="muted small">—</span>
+                      )}
+                  </div>
+                </td>
+                <td>
+                  <button
+                    className={openId === s.id ? '' : 'primary'}
+                    onClick={() => setOpenId(openId === s.id ? null : s.id)}
+                  >
+                    {openId === s.id ? 'Close' : 'Change'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
 
       {open && (
         <div className="editor">
           <h3>History — {open.customer_name}</h3>
           <p className="hint">
-            Every change is <b>appended</b> — nothing is overwritten, so "what was true on a past
-            date" stays answerable. An exact-duplicate entry is rejected, not silently added twice.
+            Every change is <b>appended</b> — nothing is overwritten, so "what was true on
+            a past date" stays answerable. An exact-duplicate entry is rejected, not
+            silently added twice.
           </p>
 
           {realEntries(open.pauses).length === 0 &&
           realEntries(open.skips).length === 0 &&
           open.address_history.length <= 1 ? (
-            <div className="empty">No pauses, skips, or address changes recorded yet.</div>
+            <div className="empty">
+              No pauses, skips, or address changes recorded yet.
+            </div>
           ) : (
             <table style={{ marginBottom: 16 }}>
               <thead>
@@ -141,7 +165,13 @@ export default function SubscriptionsPanel({ subscriptions, onAction }) {
                       </td>
                       <td>
                         {!cancelled && (
-                          <button onClick={() => onAction(() => api.cancelSubscriptionEvent(openId, 'pause', p.id))}>
+                          <button
+                            onClick={() =>
+                              onAction(() =>
+                                api.cancelSubscriptionEvent(openId, 'pause', p.id),
+                              )
+                            }
+                          >
                             Cancel
                           </button>
                         )}
@@ -167,7 +197,13 @@ export default function SubscriptionsPanel({ subscriptions, onAction }) {
                       </td>
                       <td>
                         {!cancelled && (
-                          <button onClick={() => onAction(() => api.cancelSubscriptionEvent(openId, 'skip', s.id))}>
+                          <button
+                            onClick={() =>
+                              onAction(() =>
+                                api.cancelSubscriptionEvent(openId, 'skip', s.id),
+                              )
+                            }
+                          >
                             Cancel
                           </button>
                         )}
@@ -181,7 +217,8 @@ export default function SubscriptionsPanel({ subscriptions, onAction }) {
                       <span className="badge badge-CONFIRMED">address</span>
                     </td>
                     <td className="small">
-                      {a.address} <span className="muted">(from {fmt(a.effective_from)})</span>
+                      {a.address}{' '}
+                      <span className="muted">(from {fmt(a.effective_from)})</span>
                     </td>
                     <td className="muted small">{fmtWhen(a.recorded_at)}</td>
                     <td />
@@ -197,15 +234,28 @@ export default function SubscriptionsPanel({ subscriptions, onAction }) {
           <div className="formrow">
             <label>
               Pause from
-              <input type="date" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} />
+              <input
+                type="date"
+                value={form.from}
+                onChange={(e) => setForm({ ...form, from: e.target.value })}
+              />
             </label>
             <label>
               to
-              <input type="date" value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} />
+              <input
+                type="date"
+                value={form.to}
+                onChange={(e) => setForm({ ...form, to: e.target.value })}
+              />
             </label>
             <button
               onClick={() =>
-                onAction(() => api.addSubscriptionEvent(openId, 'pause', { from_date: form.from, to_date: form.to }))
+                onAction(() =>
+                  api.addSubscriptionEvent(openId, 'pause', {
+                    from_date: form.from,
+                    to_date: form.to,
+                  }),
+                )
               }
             >
               Add pause
@@ -215,9 +265,19 @@ export default function SubscriptionsPanel({ subscriptions, onAction }) {
           <div className="formrow">
             <label>
               Skip date
-              <input type="date" value={form.skip} onChange={(e) => setForm({ ...form, skip: e.target.value })} />
+              <input
+                type="date"
+                value={form.skip}
+                onChange={(e) => setForm({ ...form, skip: e.target.value })}
+              />
             </label>
-            <button onClick={() => onAction(() => api.addSubscriptionEvent(openId, 'skip', { service_date: form.skip }))}>
+            <button
+              onClick={() =>
+                onAction(() =>
+                  api.addSubscriptionEvent(openId, 'skip', { service_date: form.skip }),
+                )
+              }
+            >
               Add skip
             </button>
           </div>
@@ -233,13 +293,20 @@ export default function SubscriptionsPanel({ subscriptions, onAction }) {
             </label>
             <label>
               effective from
-              <input type="date" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} />
+              <input
+                type="date"
+                value={form.from}
+                onChange={(e) => setForm({ ...form, from: e.target.value })}
+              />
             </label>
             <button
               disabled={!form.address}
               onClick={() =>
                 onAction(() =>
-                  api.addSubscriptionEvent(openId, 'address', { address: form.address, effective_from: form.from }),
+                  api.addSubscriptionEvent(openId, 'address', {
+                    address: form.address,
+                    effective_from: form.from,
+                  }),
                 )
               }
             >

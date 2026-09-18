@@ -48,8 +48,8 @@ export default function RidersPanel({ riders }) {
         </table>
       )}
       <p className="hint">
-        The rider id is what the app sends as <code>X-Rider-Id</code>. Location updates once the app
-        starts sending pings.
+        The rider id is what the app sends as <code>X-Rider-Id</code>. Location updates
+        once the app starts sending pings.
       </p>
     </section>
   );

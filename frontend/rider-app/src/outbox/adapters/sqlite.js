@@ -53,7 +53,9 @@ export async function createSqliteAdapter(name = 'riderapp.db') {
         `INSERT INTO actions (${COLUMNS.join(', ')}) VALUES (${placeholders(COLUMNS)})`,
         values,
       );
-      return db.getFirstAsync('SELECT * FROM actions WHERE id = ?', [result.lastInsertRowId]);
+      return db.getFirstAsync('SELECT * FROM actions WHERE id = ?', [
+        result.lastInsertRowId,
+      ]);
     },
 
     async nextUnsettled() {
@@ -99,7 +101,10 @@ export async function createSqliteAdapter(name = 'riderapp.db') {
     },
 
     async deleteByStates(states) {
-      await db.runAsync(`DELETE FROM actions WHERE state IN (${placeholders(states)})`, states);
+      await db.runAsync(
+        `DELETE FROM actions WHERE state IN (${placeholders(states)})`,
+        states,
+      );
     },
   };
 }

@@ -47,17 +47,11 @@ export default function OrderCard({ order, pending, onAdvance }) {
             {order.status.replace(/_/g, ' ')}
           </Text>
         </View>
-        <Text style={styles.price}>
-          ₹{(Number(order.price_paise) / 100).toFixed(0)}
-        </Text>
+        <Text style={styles.price}>₹{(Number(order.price_paise) / 100).toFixed(0)}</Text>
       </View>
 
-      <Text style={styles.address}>
-        {order.delivery_address}
-      </Text>
-      <Text style={styles.meta}>
-        Service date {order.service_date}
-      </Text>
+      <Text style={styles.address}>{order.delivery_address}</Text>
+      <Text style={styles.meta}>Service date {order.service_date}</Text>
 
       {order.status === 'PREPARING' && (
         <Text style={styles.waiting}>
@@ -95,9 +89,7 @@ export default function OrderCard({ order, pending, onAdvance }) {
               ]}
               onPress={() => onAdvance(to)}
             >
-              <Text style={styles.actionText}>
-                {ACTION_LABELS[to] ?? to}
-              </Text>
+              <Text style={styles.actionText}>{ACTION_LABELS[to] ?? to}</Text>
             </Pressable>
           ))}
       </View>

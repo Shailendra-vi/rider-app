@@ -3,8 +3,8 @@ import sessionReducer from './sessionSlice';
 import outboxReducer from './outboxSlice';
 
 export const store = configureStore({
-  reducer: { 
-    session: sessionReducer, 
-    outbox: outboxReducer 
+  reducer: {
+    session: sessionReducer,
+    outbox: outboxReducer,
   },
 });

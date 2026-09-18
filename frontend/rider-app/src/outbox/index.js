@@ -19,36 +19,52 @@ export function subscribe(fn) {
 
 function makeTransport(riderId) {
   return async (row) => {
-    if (getSession()?.riderId !== riderId) throw Object.assign(new Error('Sign in to resume your saved actions'), { status: 401 });
+    if (getSession()?.riderId !== riderId)
+      throw Object.assign(new Error('Sign in to resume your saved actions'), {
+        status: 401,
+      });
     const body = JSON.parse(row.body);
 
     if (row.kind === 'CLAIM') return api.claim(riderId);
     if (row.kind === 'TRANSITION') {
       return api.transition(
-        riderId, 
-        row.order_id, 
-        row.target_status, 
-        body.claimId ?? row.claim_id
+        riderId,
+        row.order_id,
+        row.target_status,
+        body.claimId ?? row.claim_id,
       );
     }
-    throw Object.assign(new Error(`Unknown action kind: ${row.kind}`), { status: 400, code: 'UNKNOWN_KIND' });
+    throw Object.assign(new Error(`Unknown action kind: ${row.kind}`), {
+      status: 400,
+      code: 'UNKNOWN_KIND',
+    });
   };
 }
 
 export async function initOutbox(riderId) {
-  if (!/^[a-f0-9-]{36}$/i.test(riderId)) throw new Error('A verified rider account is required');
+  if (!/^[a-f0-9-]{36}$/i.test(riderId))
+    throw new Error('A verified rider account is required');
   if (instances.has(riderId)) return instances.get(riderId);
   if (opening.has(riderId)) return opening.get(riderId);
   const promise = (async () => {
     const adapter = await createSqliteAdapter(`riderapp-${riderId}.db`);
-    const instance = createOutbox({ adapter, transport: makeTransport(riderId), onChange: notify, newKey: () => Crypto.randomUUID() });
+    const instance = createOutbox({
+      adapter,
+      transport: makeTransport(riderId),
+      onChange: notify,
+      newKey: () => Crypto.randomUUID(),
+    });
     await instance.recover();
     instances.set(riderId, instance);
     notify();
     return instance;
   })();
   opening.set(riderId, promise);
-  try { return await promise; } finally { opening.delete(riderId); }
+  try {
+    return await promise;
+  } finally {
+    opening.delete(riderId);
+  }
 }
 
 export function getOutbox() {

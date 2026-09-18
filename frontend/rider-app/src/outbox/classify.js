@@ -7,7 +7,8 @@ export const OUTCOME = {
 
 export function classify(action, { payload, error } = {}) {
   if (error) {
-    if ([401, 403, 429].includes(error.status)) return { outcome: OUTCOME.RETRY, reason: 'AUTH_OR_RATE_LIMIT' };
+    if ([401, 403, 429].includes(error.status))
+      return { outcome: OUTCOME.RETRY, reason: 'AUTH_OR_RATE_LIMIT' };
     if (error.timedOut) return { outcome: OUTCOME.RETRY, reason: 'TIMEOUT' };
 
     if (!error.status) return { outcome: OUTCOME.RETRY, reason: 'NETWORK' };
@@ -16,9 +17,12 @@ export function classify(action, { payload, error } = {}) {
 
     if (error.status === 409) {
       if (error.code === 'RIDER_OFFLINE') {
-        return { outcome: OUTCOME.CONFLICT, code: error.code, message: 'You went offline — go back on shift first.' };
+        return {
+          outcome: OUTCOME.CONFLICT,
+          code: error.code,
+          message: 'You went offline — go back on shift first.',
+        };
       }
-
 
       if (error.code === 'STALE_CLAIM') {
         return {
@@ -27,7 +31,6 @@ export function classify(action, { payload, error } = {}) {
           message: 'This order is no longer yours — it was reassigned or closed.',
         };
       }
-
 
       if (error.code === 'INVALID_TRANSITION') {
         const current = error.details?.current;
@@ -41,7 +44,6 @@ export function classify(action, { payload, error } = {}) {
         };
       }
 
-
       return { outcome: OUTCOME.CONFLICT, code: error.code, message: error.message };
     }
 
@@ -49,18 +51,18 @@ export function classify(action, { payload, error } = {}) {
   }
 
   if (payload === null && action.kind === 'CLAIM') {
-    return { 
-      outcome: OUTCOME.CONFIRMED, 
-      resultCode: 'NO_ORDER', 
-      message: 'No orders ready right now' 
+    return {
+      outcome: OUTCOME.CONFIRMED,
+      resultCode: 'NO_ORDER',
+      message: 'No orders ready right now',
     };
   }
 
   if (payload?.alreadyApplied) {
-    return { 
-      outcome: OUTCOME.CONFIRMED, 
-      resultCode: 'ALREADY_APPLIED', 
-      payload 
+    return {
+      outcome: OUTCOME.CONFIRMED,
+      resultCode: 'ALREADY_APPLIED',
+      payload,
     };
   }
 

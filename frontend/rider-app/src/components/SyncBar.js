@@ -5,8 +5,18 @@ export default function SyncBar({ pending, draining, conflicts, onDismiss }) {
   return (
     <View style={styles.wrap}>
       <View style={[styles.bar, pending > 0 ? styles.barPending : styles.barIdle]}>
-        {draining && <ActivityIndicator size="small" color={colors.warning} />}
-        <Text style={[styles.barText, { color: pending > 0 ? colors.warning : colors.inkMuted }]}>
+        {draining && (
+          <ActivityIndicator
+            size="small"
+            color={colors.warning}
+          />
+        )}
+        <Text
+          style={[
+            styles.barText,
+            { color: pending > 0 ? colors.warning : colors.inkMuted },
+          ]}
+        >
           {pending > 0
             ? `${pending} action${pending === 1 ? '' : 's'} waiting to sync`
             : 'Everything synced'}
@@ -14,16 +24,24 @@ export default function SyncBar({ pending, draining, conflicts, onDismiss }) {
       </View>
 
       {conflicts.map((c) => (
-        <View key={c.id} style={styles.conflict}>
+        <View
+          key={c.id}
+          style={styles.conflict}
+        >
           <Text style={styles.conflictTitle}>
-            {c.target_status ? `${c.target_status.replace(/_/g, ' ')} could not be applied` : 'Action rejected'}
+            {c.target_status
+              ? `${c.target_status.replace(/_/g, ' ')} could not be applied`
+              : 'Action rejected'}
           </Text>
           <Text style={styles.conflictText}>{c.user_message ?? c.result_code}</Text>
         </View>
       ))}
 
       {conflicts.length > 0 && (
-        <Pressable style={styles.dismiss} onPress={onDismiss}>
+        <Pressable
+          style={styles.dismiss}
+          onPress={onDismiss}
+        >
           <Text style={styles.dismissText}>Got it</Text>
         </Pressable>
       )}

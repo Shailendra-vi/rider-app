@@ -20,10 +20,15 @@ export function createOutbox({
   random = Math.random,
   backoffCap = 60_000,
 }) {
-  
   let draining = false;
 
-  async function enqueue({ kind, orderId = null, targetStatus = null, claimId = null, body = {} }) {
+  async function enqueue({
+    kind,
+    orderId = null,
+    targetStatus = null,
+    claimId = null,
+    body = {},
+  }) {
     const row = await adapter.insert({
       idempotency_key: newKey(),
       kind,
@@ -38,7 +43,6 @@ export function createOutbox({
       result_code: null,
       user_message: null,
     });
-
 
     onChange();
     return row;
@@ -82,7 +86,8 @@ export function createOutbox({
             state: STATE.QUEUED,
             attempts,
             next_attempt_at: now() + backoffMs(attempts, { cap: backoffCap, random }),
-            user_message: attempts >= STUCK_AFTER_ATTEMPTS ? 'Still trying — no connection' : null,
+            user_message:
+              attempts >= STUCK_AFTER_ATTEMPTS ? 'Still trying — no connection' : null,
           });
           onChange();
           break;

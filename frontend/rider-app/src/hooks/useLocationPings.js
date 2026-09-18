@@ -34,8 +34,8 @@ export function useLocationPings(order) {
         }
         if (!permissionGranted.current) return;
 
-        const position = await Location.getCurrentPositionAsync({ 
-          accuracy: Location.Accuracy.Balanced 
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
         });
         if (cancelled) return;
         buffer.current.push({
@@ -44,7 +44,7 @@ export function useLocationPings(order) {
           recordedAt: new Date(position.timestamp).toISOString(),
           orderId: order.id,
         });
-        
+
         if (buffer.current.length > MAX_BUFFERED_PINGS) {
           buffer.current = buffer.current.slice(-MAX_BUFFERED_PINGS);
         }
@@ -57,12 +57,20 @@ export function useLocationPings(order) {
     const tick = async () => {
       if (cancelled || running) return;
       running = true;
-      try { await (tracking ? tickLocation() : tickHeartbeat()); } finally { running = false; }
+      try {
+        await (tracking ? tickLocation() : tickHeartbeat());
+      } finally {
+        running = false;
+      }
     };
     if (!tracking) buffer.current = [];
 
     tick();
     const timer = setInterval(tick, TICK_MS);
-    return () => { cancelled = true; clearInterval(timer); buffer.current = []; };
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      buffer.current = [];
+    };
   }, [dispatch, order?.id, order?.status]);
 }

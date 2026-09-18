@@ -1,7 +1,21 @@
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { setOnline, signOut } from '../store/sessionSlice';
-import { dismissConflicts, enqueueAdvance, enqueueClaim, resetApp } from '../store/outboxSlice';
+import {
+  dismissConflicts,
+  enqueueAdvance,
+  enqueueClaim,
+  resetApp,
+} from '../store/outboxSlice';
 import { useLocationPings } from '../hooks/useLocationPings';
 import OrderCard from '../components/OrderCard';
 import SyncBar from '../components/SyncBar';
@@ -62,11 +76,20 @@ export default function ShiftScreen() {
           <View style={styles.grow}>
             <Text style={styles.shiftLabel}>{online ? 'On shift' : 'Off shift'}</Text>
             <Text style={styles.muted}>
-              {shiftPending ? 'Asking the server…' : online ? 'You can claim orders' : 'Go online to claim orders'}
+              {shiftPending
+                ? 'Asking the server…'
+                : online
+                  ? 'You can claim orders'
+                  : 'Go online to claim orders'}
             </Text>
           </View>
           <View style={styles.switchSlot}>
-            {shiftPending && <ActivityIndicator style={styles.spinner} color={colors.accent} />}
+            {shiftPending && (
+              <ActivityIndicator
+                style={styles.spinner}
+                color={colors.accent}
+              />
+            )}
             <Switch
               value={online}
               disabled={shiftPending}
@@ -94,7 +117,9 @@ export default function ShiftScreen() {
         <View style={styles.card}>
           <Text style={styles.label}>Current order</Text>
           <Text style={styles.muted}>
-            {claimQueued ? 'Claim queued — will send when there is a connection.' : 'Nothing assigned to you.'}
+            {claimQueued
+              ? 'Claim queued — will send when there is a connection.'
+              : 'Nothing assigned to you.'}
           </Text>
         </View>
       )}
@@ -109,11 +134,16 @@ export default function ShiftScreen() {
           disabled={!online || claimQueued}
           onPress={() => dispatch(enqueueClaim())}
         >
-          <Text style={styles.claimText}>{claimQueued ? 'Claiming…' : 'Claim next order'}</Text>
+          <Text style={styles.claimText}>
+            {claimQueued ? 'Claiming…' : 'Claim next order'}
+          </Text>
         </Pressable>
       )}
 
-      <Pressable style={styles.reset} onPress={confirmReset}>
+      <Pressable
+        style={styles.reset}
+        onPress={confirmReset}
+      >
         <Text style={styles.resetText}>Reset app data</Text>
       </Pressable>
     </ScrollView>

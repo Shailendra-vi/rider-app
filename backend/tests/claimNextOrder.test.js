@@ -15,10 +15,12 @@ async function seedPlanAndCustomer() {
      VALUES ($1, $2, '2020-01-01', 127) RETURNING id`,
     [customer[0].id, plan[0].id],
   );
-  return { planId: plan[0].id, customerId: customer[0].id, subscriptionId: subscription[0].id };
+  return {
+    planId: plan[0].id,
+    customerId: customer[0].id,
+    subscriptionId: subscription[0].id,
+  };
 }
-
-
 
 async function seedReadyOrder(subscriptionId, customerId, serviceDate) {
   const { rows } = await pool.query(
@@ -30,12 +32,12 @@ async function seedReadyOrder(subscriptionId, customerId, serviceDate) {
 }
 
 async function seedRider(phone) {
-  const { rows } = await pool.query(`INSERT INTO riders (name, phone) VALUES ('Test Rider', $1) RETURNING id`, [phone]);
+  const { rows } = await pool.query(
+    `INSERT INTO riders (name, phone) VALUES ('Test Rider', $1) RETURNING id`,
+    [phone],
+  );
   return rows[0].id;
 }
-
-
-
 
 describe('claimNextOrder', () => {
   it('assigns a ready order to a rider', async () => {
@@ -48,14 +50,11 @@ describe('claimNextOrder', () => {
     expect(order.rider_id).toBe(riderId);
   });
 
-
-
   it('returns 204-worthy null when nothing is ready', async () => {
     const riderId = await seedRider('+919000000002');
     const order = await claimNextOrder(riderId);
     expect(order).toBeNull();
   });
-
 
   it('never assigns the same order to two riders under a stampede', async () => {
     const { subscriptionId, customerId } = await seedPlanAndCustomer();
@@ -65,13 +64,11 @@ describe('claimNextOrder', () => {
       Array.from({ length: 20 }, (_, i) => seedRider(`+91900000${1000 + i}`)),
     );
 
-
     const results = await Promise.all(riderIds.map((riderId) => claimNextOrder(riderId)));
     const winners = results.filter((r) => r !== null);
 
     expect(winners).toHaveLength(1);
     expect(winners[0].id).toBe(orderId);
-
 
     const { rows: claims } = await pool.query(
       'SELECT count(*) FROM deliveries WHERE order_id = $1 AND released_at IS NULL',
@@ -80,22 +77,22 @@ describe('claimNextOrder', () => {
     expect(Number(claims[0].count)).toBe(1);
   });
 
-
-
   it('gives every rider a different order when many are ready', async () => {
     const { subscriptionId, customerId } = await seedPlanAndCustomer();
     const orderIds = await Promise.all(
-      Array.from({ length: 10 }, (_, i) => seedReadyOrder(subscriptionId, customerId, `2025-08-${12 + i}`)),
+      Array.from({ length: 10 }, (_, i) =>
+        seedReadyOrder(subscriptionId, customerId, `2025-08-${12 + i}`),
+      ),
     );
-    const riderIds = await Promise.all(Array.from({ length: 10 }, (_, i) => seedRider(`+91900001${1000 + i}`)));
+    const riderIds = await Promise.all(
+      Array.from({ length: 10 }, (_, i) => seedRider(`+91900001${1000 + i}`)),
+    );
 
     const results = await Promise.all(riderIds.map((riderId) => claimNextOrder(riderId)));
 
     expect(results.every((r) => r !== null)).toBe(true);
     expect(new Set(results.map((r) => r.id)).size).toBe(orderIds.length);
   });
-
-
 
   it('a double-tap from the same rider claims only one order', async () => {
     const { subscriptionId, customerId } = await seedPlanAndCustomer();
@@ -112,7 +109,6 @@ describe('claimNextOrder', () => {
     );
     expect(Number(rows[0].count)).toBe(1);
   });
-  
 
   it('reclaims an order once the ghost rider’s lease has expired, fencing the old claim', async () => {
     const { subscriptionId, customerId } = await seedPlanAndCustomer();
@@ -123,7 +119,10 @@ describe('claimNextOrder', () => {
     const first = await claimNextOrder(riderA);
     expect(first.id).toBe(orderId);
 
-    await pool.query("UPDATE deliveries SET expires_at = now() - interval '1 minute' WHERE order_id = $1", [orderId]);
+    await pool.query(
+      "UPDATE deliveries SET expires_at = now() - interval '1 minute' WHERE order_id = $1",
+      [orderId],
+    );
 
     const second = await claimNextOrder(riderB);
     expect(second.id).toBe(orderId);

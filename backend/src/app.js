@@ -46,13 +46,20 @@ export function createApp(authOptions) {
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
     if (err.status) {
-      if (err.status === 429 && err.details?.retryAfterSeconds) res.set('Retry-After', String(err.details.retryAfterSeconds));
-      return res
-        .status(err.status)
-        .json({ error: { code: err.code || 'BAD_REQUEST', message: err.type === 'entity.parse.failed' ? 'Invalid JSON' : err.message, ...(err.details && { details: err.details }) } });
+      if (err.status === 429 && err.details?.retryAfterSeconds)
+        res.set('Retry-After', String(err.details.retryAfterSeconds));
+      return res.status(err.status).json({
+        error: {
+          code: err.code || 'BAD_REQUEST',
+          message: err.type === 'entity.parse.failed' ? 'Invalid JSON' : err.message,
+          ...(err.details && { details: err.details }),
+        },
+      });
     }
     console.error(err);
-    res.status(500).json({ error: { code: 'INTERNAL', message: 'An internal error occurred' } });
+    res
+      .status(500)
+      .json({ error: { code: 'INTERNAL', message: 'An internal error occurred' } });
   });
 
   return app;

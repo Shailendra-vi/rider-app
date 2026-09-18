@@ -1,14 +1,16 @@
 import { istWeekday, toDateString } from '../lib/time.js';
 
 function activeEntries(list, asOf) {
-  const knownByCutoff = (entry) => new Date(entry.recorded_at).getTime() <= asOf.getTime();
+  const knownByCutoff = (entry) =>
+    new Date(entry.recorded_at).getTime() <= asOf.getTime();
   const known = (list ?? []).filter(knownByCutoff);
   const cancelledIds = new Set(known.filter((e) => e.cancels).map((e) => e.cancels));
   return known.filter((e) => !e.cancels && !cancelledIds.has(e.id));
 }
 
 export function resolveSubscriptionForDate(subscription, serviceDate, asOf) {
-  const knownByCutoff = (entry) => new Date(entry.recorded_at).getTime() <= asOf.getTime();
+  const knownByCutoff = (entry) =>
+    new Date(entry.recorded_at).getTime() <= asOf.getTime();
 
   if (!subscription.is_active) return { eligible: false, reason: 'CANCELLED' };
 
@@ -21,11 +23,14 @@ export function resolveSubscriptionForDate(subscription, serviceDate, asOf) {
     return { eligible: false, reason: 'NOT_ACTIVE_WEEKDAY' };
   }
 
-  const skipped = activeEntries(subscription.skips, asOf).some((s) => toDateString(s.service_date) === serviceDate);
+  const skipped = activeEntries(subscription.skips, asOf).some(
+    (s) => toDateString(s.service_date) === serviceDate,
+  );
   if (skipped) return { eligible: false, reason: 'SKIPPED' };
 
   const paused = activeEntries(subscription.pauses, asOf).some(
-    (p) => toDateString(p.from_date) <= serviceDate && serviceDate <= toDateString(p.to_date),
+    (p) =>
+      toDateString(p.from_date) <= serviceDate && serviceDate <= toDateString(p.to_date),
   );
   if (paused) return { eligible: false, reason: 'PAUSED' };
 

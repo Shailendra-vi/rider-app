@@ -4,7 +4,9 @@ import { pool } from '../src/db/pool.js';
 import { runMigrations } from '../src/db/migrate.js';
 
 if (!config.databaseUrl.includes('test')) {
-  throw new Error(`Refusing to run tests against ${config.databaseUrl} — it must be a test database.`);
+  throw new Error(
+    `Refusing to run tests against ${config.databaseUrl} — it must be a test database.`,
+  );
 }
 
 beforeAll(async () => {
@@ -12,7 +14,9 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await pool.query('TRUNCATE rider_auth_challenges, rider_auth_limits, orders, deliveries, payments, subscriptions, plans, riders, customers RESTART IDENTITY CASCADE');
+  await pool.query(
+    'TRUNCATE rider_auth_challenges, rider_auth_limits, orders, deliveries, payments, subscriptions, plans, riders, customers RESTART IDENTITY CASCADE',
+  );
 });
 
 afterAll(async () => {

@@ -4,7 +4,9 @@ import { allowedTransitions } from '../orders/stateMachine.js';
 import { PUBLIC_RIDER_FIELDS } from '../auth/service.js';
 
 export async function listRiders() {
-  const { rows } = await pool.query('SELECT id, name, phone, is_online FROM riders ORDER BY name');
+  const { rows } = await pool.query(
+    'SELECT id, name, phone, is_online FROM riders ORDER BY name',
+  );
   return rows;
 }
 
@@ -17,7 +19,10 @@ export async function setShift(riderId, online) {
 }
 
 export async function getRiderState(riderId) {
-  const { rows: riders } = await pool.query(`SELECT ${PUBLIC_RIDER_FIELDS} FROM riders WHERE id = $1`, [riderId]);
+  const { rows: riders } = await pool.query(
+    `SELECT ${PUBLIC_RIDER_FIELDS} FROM riders WHERE id = $1`,
+    [riderId],
+  );
   const rider = riders[0];
 
   const { rows } = await pool.query(
@@ -31,7 +36,9 @@ export async function getRiderState(riderId) {
   const current = rows[0];
   return {
     rider,
-    currentOrder: current ? { ...current, allowedTransitions: allowedTransitions(current.status) } : null,
+    currentOrder: current
+      ? { ...current, allowedTransitions: allowedTransitions(current.status) }
+      : null,
   };
 }
 

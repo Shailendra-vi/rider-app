@@ -28,7 +28,13 @@ export async function generateOrdersForDate(serviceDate, { asOf } = {}) {
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (subscription_id, service_date) DO NOTHING
        RETURNING id`,
-      [subscription.id, subscription.customer_id, serviceDate, subscription.price_paise, result.address],
+      [
+        subscription.id,
+        subscription.customer_id,
+        serviceDate,
+        subscription.price_paise,
+        result.address,
+      ],
     );
 
     if (rows.length > 0) created += 1;

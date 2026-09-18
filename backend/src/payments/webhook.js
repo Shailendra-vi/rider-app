@@ -21,14 +21,30 @@ function verifySignature(rawBody, timestamp, signatureHeader) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-export async function processPaymentWebhook({ body, rawBody, signatureHeader, timestampHeader }) {
+export async function processPaymentWebhook({
+  body,
+  rawBody,
+  signatureHeader,
+  timestampHeader,
+}) {
   if (!rawBody || !signatureHeader || !timestampHeader) {
-    throw new HttpError(400, 'VALIDATION_FAILED', 'Signature and timestamp headers are required');
+    throw new HttpError(
+      400,
+      'VALIDATION_FAILED',
+      'Signature and timestamp headers are required',
+    );
   }
 
   const timestamp = Number(timestampHeader);
-  if (!Number.isFinite(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > MAX_SKEW_SECONDS) {
-    throw new HttpError(400, 'TIMESTAMP_OUT_OF_RANGE', 'Webhook timestamp is outside the accepted window');
+  if (
+    !Number.isFinite(timestamp) ||
+    Math.abs(Date.now() / 1000 - timestamp) > MAX_SKEW_SECONDS
+  ) {
+    throw new HttpError(
+      400,
+      'TIMESTAMP_OUT_OF_RANGE',
+      'Webhook timestamp is outside the accepted window',
+    );
   }
 
   if (!verifySignature(rawBody, timestamp, signatureHeader)) {
@@ -37,10 +53,16 @@ export async function processPaymentWebhook({ body, rawBody, signatureHeader, ti
 
   const { eventId, customerId, type, amountPaise, occurredAt } = body ?? {};
   if (!eventId || !customerId || !EVENT_TYPES.has(type) || !(Number(amountPaise) > 0)) {
-    throw new HttpError(400, 'VALIDATION_FAILED', 'eventId, customerId, type (TOPUP|REFUND) and amountPaise are required');
+    throw new HttpError(
+      400,
+      'VALIDATION_FAILED',
+      'eventId, customerId, type (TOPUP|REFUND) and amountPaise are required',
+    );
   }
 
-  const customer = await pool.query('SELECT id FROM customers WHERE id = $1', [customerId]);
+  const customer = await pool.query('SELECT id FROM customers WHERE id = $1', [
+    customerId,
+  ]);
   if (customer.rows.length === 0) {
     throw new HttpError(404, 'NOT_FOUND', `Customer ${customerId} not found`);
   }

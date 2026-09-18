@@ -32,7 +32,10 @@ describe('subscription event duplicate guard', () => {
       code: 'DUPLICATE_EVENT',
     });
 
-    const different = await addSubscriptionEvent(subId, 'pause', { from_date: '2025-09-01', to_date: '2025-09-02' });
+    const different = await addSubscriptionEvent(subId, 'pause', {
+      from_date: '2025-09-01',
+      to_date: '2025-09-02',
+    });
     expect(different.pauses).toHaveLength(2);
   });
 
@@ -40,12 +43,16 @@ describe('subscription event duplicate guard', () => {
     const subId = await seedSubscription();
     await addSubscriptionEvent(subId, 'skip', { service_date: '2025-08-15' });
 
-    await expect(addSubscriptionEvent(subId, 'skip', { service_date: '2025-08-15' })).rejects.toMatchObject({
+    await expect(
+      addSubscriptionEvent(subId, 'skip', { service_date: '2025-08-15' }),
+    ).rejects.toMatchObject({
       status: 409,
       code: 'DUPLICATE_EVENT',
     });
 
-    const distinct = await addSubscriptionEvent(subId, 'skip', { service_date: '2025-08-16' });
+    const distinct = await addSubscriptionEvent(subId, 'skip', {
+      service_date: '2025-08-16',
+    });
     expect(distinct.skips).toHaveLength(2);
   });
 
@@ -54,9 +61,13 @@ describe('subscription event duplicate guard', () => {
     const pause = { from_date: '2025-08-10', to_date: '2025-08-12' };
     await addSubscriptionEvent(subId, 'pause', pause);
 
-    await expect(addSubscriptionEvent(subId, 'pause', pause)).rejects.toMatchObject({ code: 'DUPLICATE_EVENT' });
+    await expect(addSubscriptionEvent(subId, 'pause', pause)).rejects.toMatchObject({
+      code: 'DUPLICATE_EVENT',
+    });
 
-    const { rows } = await pool.query('SELECT pauses FROM subscriptions WHERE id = $1', [subId]);
+    const { rows } = await pool.query('SELECT pauses FROM subscriptions WHERE id = $1', [
+      subId,
+    ]);
     expect(rows[0].pauses).toHaveLength(1);
     expect(rows[0].pauses[0]).toMatchObject(pause);
   });
@@ -65,7 +76,10 @@ describe('subscription event duplicate guard', () => {
 describe('cancelling a pause or skip', () => {
   it('appends a cancellation without removing the original entry', async () => {
     const subId = await seedSubscription();
-    const created = await addSubscriptionEvent(subId, 'pause', { from_date: '2025-08-10', to_date: '2025-08-12' });
+    const created = await addSubscriptionEvent(subId, 'pause', {
+      from_date: '2025-08-10',
+      to_date: '2025-08-12',
+    });
     const entryId = created.pauses[0].id;
 
     const cancelled = await cancelSubscriptionEvent(subId, 'pause', entryId);
@@ -76,7 +90,9 @@ describe('cancelling a pause or skip', () => {
 
   it('rejects cancelling the same entry twice', async () => {
     const subId = await seedSubscription();
-    const created = await addSubscriptionEvent(subId, 'skip', { service_date: '2025-08-15' });
+    const created = await addSubscriptionEvent(subId, 'skip', {
+      service_date: '2025-08-15',
+    });
     const entryId = created.skips[0].id;
 
     await cancelSubscriptionEvent(subId, 'skip', entryId);
@@ -88,12 +104,16 @@ describe('cancelling a pause or skip', () => {
 
   it('rejects cancelling an entry that does not exist', async () => {
     const subId = await seedSubscription();
-    await expect(cancelSubscriptionEvent(subId, 'pause', 'nonexistent-id')).rejects.toMatchObject({ status: 404 });
+    await expect(
+      cancelSubscriptionEvent(subId, 'pause', 'nonexistent-id'),
+    ).rejects.toMatchObject({ status: 404 });
   });
 
   it('rejects cancelling an address change (not a cancellable kind)', async () => {
     const subId = await seedSubscription();
-    await expect(cancelSubscriptionEvent(subId, 'address', 'whatever')).rejects.toMatchObject({
+    await expect(
+      cancelSubscriptionEvent(subId, 'address', 'whatever'),
+    ).rejects.toMatchObject({
       status: 400,
       code: 'VALIDATION_FAILED',
     });

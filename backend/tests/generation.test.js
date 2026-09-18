@@ -5,7 +5,6 @@ import { generateOrdersForDate } from '../src/generation/generateOrdersForDate.j
 const SERVICE_DATE = '2026-09-05';
 const ALL_WEEKDAYS_MASK = 0b1111111;
 
-
 async function insertPlan() {
   const { rows } = await pool.query(
     `INSERT INTO plans (code, name, meal_slot, price_paise)
@@ -14,7 +13,6 @@ async function insertPlan() {
   return rows[0].id;
 }
 
-
 async function insertCustomer(phone) {
   const { rows } = await pool.query(
     `INSERT INTO customers (name, phone) VALUES ('Test Customer', $1) RETURNING id`,
@@ -22,8 +20,6 @@ async function insertCustomer(phone) {
   );
   return rows[0].id;
 }
-
-
 
 async function insertSubscription(customerId, planId, { startDate = '2020-01-01' } = {}) {
   const { rows } = await pool.query(
@@ -40,8 +36,6 @@ async function insertSubscription(customerId, planId, { startDate = '2020-01-01'
   return rows[0].id;
 }
 
-
-
 async function seedSubscriptions(count) {
   const planId = await insertPlan();
   for (let i = 0; i < count; i += 1) {
@@ -49,9 +43,6 @@ async function seedSubscriptions(count) {
     await insertSubscription(customerId, planId);
   }
 }
-
-
-
 
 describe('generateOrdersForDate', () => {
   it('is idempotent: running it twice creates no duplicates', async () => {
@@ -68,7 +59,10 @@ describe('generateOrdersForDate', () => {
     expect(second.created).toBe(0);
     expect(second.skippedExisting).toBe(3);
 
-    const { rows } = await pool.query('SELECT count(*) FROM orders WHERE service_date = $1', [SERVICE_DATE]);
+    const { rows } = await pool.query(
+      'SELECT count(*) FROM orders WHERE service_date = $1',
+      [SERVICE_DATE],
+    );
     expect(Number(rows[0].count)).toBe(3);
   });
 
@@ -76,7 +70,9 @@ describe('generateOrdersForDate', () => {
     await seedSubscriptions(5);
     const asOf = new Date();
 
-    const { rows: subs } = await pool.query('SELECT id, customer_id FROM subscriptions ORDER BY id LIMIT 2');
+    const { rows: subs } = await pool.query(
+      'SELECT id, customer_id FROM subscriptions ORDER BY id LIMIT 2',
+    );
     for (const s of subs) {
       await pool.query(
         `INSERT INTO orders (subscription_id, customer_id, service_date, price_paise, delivery_address)
@@ -90,15 +86,12 @@ describe('generateOrdersForDate', () => {
     expect(result.created).toBe(3);
     expect(result.skippedExisting).toBe(2);
 
-
     const { rows } = await pool.query(
       `SELECT subscription_id, count(*) FROM orders WHERE service_date = $1 GROUP BY subscription_id HAVING count(*) > 1`,
       [SERVICE_DATE],
     );
     expect(rows).toHaveLength(0);
   });
-
-
 
   it('never creates duplicates when two runs race for the same date', async () => {
     await seedSubscriptions(20);
@@ -111,7 +104,10 @@ describe('generateOrdersForDate', () => {
 
     expect(a.created + b.created).toBe(20);
 
-    const { rows: total } = await pool.query('SELECT count(*) FROM orders WHERE service_date = $1', [SERVICE_DATE]);
+    const { rows: total } = await pool.query(
+      'SELECT count(*) FROM orders WHERE service_date = $1',
+      [SERVICE_DATE],
+    );
     expect(Number(total[0].count)).toBe(20);
 
     const { rows: dupes } = await pool.query(

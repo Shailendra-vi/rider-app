@@ -26,7 +26,9 @@ export async function runMigrations() {
       await client.query('BEGIN');
       try {
         await client.query(sql);
-        await client.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [file]);
+        await client.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [
+          file,
+        ]);
         await client.query('COMMIT');
       } catch (err) {
         await client.query('ROLLBACK');
@@ -38,7 +40,8 @@ export async function runMigrations() {
   }
 }
 
-const invokedDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const invokedDirectly =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (invokedDirectly) {
   runMigrations()
     .then(() => console.log('migrations up to date'))

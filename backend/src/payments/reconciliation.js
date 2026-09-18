@@ -21,7 +21,11 @@ async function duplicateCharges(serviceDate) {
      HAVING count(*) > 1`,
     [serviceDate],
   );
-  return rows.map((r) => ({ code: 'DUPLICATE_CHARGE', orderId: r.order_id, count: Number(r.n) }));
+  return rows.map((r) => ({
+    code: 'DUPLICATE_CHARGE',
+    orderId: r.order_id,
+    count: Number(r.n),
+  }));
 }
 
 async function chargesWithoutDeliveredOrder(serviceDate) {
@@ -33,7 +37,11 @@ async function chargesWithoutDeliveredOrder(serviceDate) {
         AND (o.service_date = $1 OR o.id IS NULL)`,
     [serviceDate],
   );
-  return rows.map((r) => ({ code: 'CHARGE_NO_DELIVERED_ORDER', paymentId: r.payment_id, orderId: r.order_id }));
+  return rows.map((r) => ({
+    code: 'CHARGE_NO_DELIVERED_ORDER',
+    paymentId: r.payment_id,
+    orderId: r.order_id,
+  }));
 }
 
 async function multipleActiveClaims(serviceDate) {
@@ -46,7 +54,11 @@ async function multipleActiveClaims(serviceDate) {
      HAVING count(*) > 1`,
     [serviceDate],
   );
-  return rows.map((r) => ({ code: 'MULTIPLE_ACTIVE_CLAIMS', orderId: r.order_id, count: Number(r.n) }));
+  return rows.map((r) => ({
+    code: 'MULTIPLE_ACTIVE_CLAIMS',
+    orderId: r.order_id,
+    count: Number(r.n),
+  }));
 }
 
 async function orphanActiveClaims(serviceDate) {
@@ -58,7 +70,11 @@ async function orphanActiveClaims(serviceDate) {
         AND o.status IN ('DELIVERED', 'CANCELLED', 'FAILED')`,
     [serviceDate],
   );
-  return rows.map((r) => ({ code: 'ORPHAN_ACTIVE_CLAIM', claimId: r.claim_id, orderId: r.order_id }));
+  return rows.map((r) => ({
+    code: 'ORPHAN_ACTIVE_CLAIM',
+    claimId: r.claim_id,
+    orderId: r.order_id,
+  }));
 }
 
 export async function reconcileDate(serviceDate) {
@@ -72,7 +88,10 @@ export async function reconcileDate(serviceDate) {
     ])
   ).flat();
 
-  const counts = divergences.reduce((acc, d) => ({ ...acc, [d.code]: (acc[d.code] ?? 0) + 1 }), {});
+  const counts = divergences.reduce(
+    (acc, d) => ({ ...acc, [d.code]: (acc[d.code] ?? 0) + 1 }),
+    {},
+  );
 
   return { date: serviceDate, ok: divergences.length === 0, divergences, counts };
 }

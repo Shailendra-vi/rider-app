@@ -12,7 +12,10 @@ export async function listPlans() {
 }
 
 export async function createPlan({ code, name, mealSlot = 'LUNCH', pricePaise }) {
-  const { rows } = await pool.query(`INSERT INTO plans (code, name, meal_slot, price_paise) VALUES ($1,$2,$3,$4) RETURNING *`, [code, name, mealSlot, pricePaise]);
+  const { rows } = await pool.query(
+    `INSERT INTO plans (code, name, meal_slot, price_paise) VALUES ($1,$2,$3,$4) RETURNING *`,
+    [code, name, mealSlot, pricePaise],
+  );
   return rows[0];
 }
 
@@ -22,12 +25,18 @@ export async function listCustomers() {
 }
 
 export async function createCustomer({ name, phone }) {
-  const { rows } = await pool.query('INSERT INTO customers (name, phone) VALUES ($1,$2) RETURNING *', [name, phone]);
+  const { rows } = await pool.query(
+    'INSERT INTO customers (name, phone) VALUES ($1,$2) RETURNING *',
+    [name, phone],
+  );
   return rows[0];
 }
 
 export async function createRider({ name, phone }) {
-  const { rows } = await pool.query('INSERT INTO riders (name, phone) VALUES ($1,$2) RETURNING id, name, phone, status, is_online, created_at', [name, phone]);
+  const { rows } = await pool.query(
+    'INSERT INTO riders (name, phone) VALUES ($1,$2) RETURNING id, name, phone, status, is_online, created_at',
+    [name, phone],
+  );
   return rows[0];
 }
 
@@ -42,8 +51,16 @@ export async function listSubscriptions() {
   return rows;
 }
 
-export async function createSubscription({ customerId, planId, startDate, weekdayMask, address }) {
-  const addressHistory = [{ address, effective_from: startDate, recorded_at: new Date().toISOString() }];
+export async function createSubscription({
+  customerId,
+  planId,
+  startDate,
+  weekdayMask,
+  address,
+}) {
+  const addressHistory = [
+    { address, effective_from: startDate, recorded_at: new Date().toISOString() },
+  ];
   const { rows } = await pool.query(
     `INSERT INTO subscriptions (customer_id, plan_id, start_date, weekday_mask, address_history)
      VALUES ($1,$2,$3,$4,$5::jsonb) RETURNING *`,
@@ -51,8 +68,6 @@ export async function createSubscription({ customerId, planId, startDate, weekda
   );
   return rows[0];
 }
-
-
 
 const EVENT_COLUMNS = { pause: 'pauses', skip: 'skips', address: 'address_history' };
 const EVENT_MATCH_KEYS = {
@@ -63,28 +78,44 @@ const EVENT_MATCH_KEYS = {
 
 export async function addSubscriptionEvent(subscriptionId, kind, payload) {
   const column = EVENT_COLUMNS[kind];
-  if (!column) throw new HttpError(400, 'VALIDATION_FAILED', `Unknown event kind: ${kind}`);
+  if (!column)
+    throw new HttpError(400, 'VALIDATION_FAILED', `Unknown event kind: ${kind}`);
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    const { rows } = await client.query(`SELECT ${column} FROM subscriptions WHERE id = $1 FOR UPDATE`, [subscriptionId]);
+    const { rows } = await client.query(
+      `SELECT ${column} FROM subscriptions WHERE id = $1 FOR UPDATE`,
+      [subscriptionId],
+    );
     if (rows.length === 0) {
       throw new HttpError(404, 'NOT_FOUND', `Subscription ${subscriptionId} not found`);
     }
 
     const existing = rows[0][column] ?? [];
     const matchKeys = EVENT_MATCH_KEYS[kind];
-    const isDuplicate = existing.some((entry) => matchKeys.every((key) => entry[key] === payload[key]));
+    const isDuplicate = existing.some((entry) =>
+      matchKeys.every((key) => entry[key] === payload[key]),
+    );
     if (isDuplicate) {
-      throw new HttpError(409, 'DUPLICATE_EVENT', `An identical ${kind} entry already exists`, { kind, payload });
+      throw new HttpError(
+        409,
+        'DUPLICATE_EVENT',
+        `An identical ${kind} entry already exists`,
+        { kind, payload },
+      );
     }
 
-
-    const entry = { id: crypto.randomUUID(), ...payload, recorded_at: new Date().toISOString() };
-    const { rows: updated } = await client.query(`UPDATE subscriptions SET ${column} = ${column} || $2::jsonb WHERE id = $1 RETURNING *`, [subscriptionId, JSON.stringify(entry)]);
-
+    const entry = {
+      id: crypto.randomUUID(),
+      ...payload,
+      recorded_at: new Date().toISOString(),
+    };
+    const { rows: updated } = await client.query(
+      `UPDATE subscriptions SET ${column} = ${column} || $2::jsonb WHERE id = $1 RETURNING *`,
+      [subscriptionId, JSON.stringify(entry)],
+    );
 
     await client.query('COMMIT');
     return updated[0]; //
@@ -96,7 +127,6 @@ export async function addSubscriptionEvent(subscriptionId, kind, payload) {
     client.release();
   }
 }
-
 
 const CANCELLABLE_KINDS = new Set(['pause', 'skip']);
 
@@ -110,11 +140,13 @@ export async function cancelSubscriptionEvent(subscriptionId, kind, entryId) {
   try {
     await client.query('BEGIN');
 
-    const { rows } = await client.query(`SELECT ${column} FROM subscriptions WHERE id = $1 FOR UPDATE`, [subscriptionId]);
+    const { rows } = await client.query(
+      `SELECT ${column} FROM subscriptions WHERE id = $1 FOR UPDATE`,
+      [subscriptionId],
+    );
     if (rows.length === 0) {
       throw new HttpError(404, 'NOT_FOUND', `Subscription ${subscriptionId} not found`);
     }
-
 
     const existing = rows[0][column] ?? [];
     const target = existing.find((e) => e.id === entryId && !e.cancels);
@@ -122,22 +154,24 @@ export async function cancelSubscriptionEvent(subscriptionId, kind, entryId) {
       throw new HttpError(404, 'NOT_FOUND', `No cancellable ${kind} entry ${entryId}`);
     }
 
-
     const alreadyCancelled = existing.some((e) => e.cancels === entryId);
     if (alreadyCancelled) {
-      throw new HttpError(409, 'DUPLICATE_EVENT', `Entry ${entryId} is already cancelled`);
+      throw new HttpError(
+        409,
+        'DUPLICATE_EVENT',
+        `Entry ${entryId} is already cancelled`,
+      );
     }
 
-    const cancellation = { 
-      id: crypto.randomUUID(), 
-      cancels: entryId, 
-      recorded_at: new Date().toISOString()
+    const cancellation = {
+      id: crypto.randomUUID(),
+      cancels: entryId,
+      recorded_at: new Date().toISOString(),
     };
     const { rows: updated } = await client.query(
       `UPDATE subscriptions SET ${column} = ${column} || $2::jsonb WHERE id = $1 RETURNING *`,
       [subscriptionId, JSON.stringify(cancellation)],
     );
-
 
     await client.query('COMMIT');
     return updated[0];
@@ -148,7 +182,6 @@ export async function cancelSubscriptionEvent(subscriptionId, kind, entryId) {
     client.release();
   }
 }
-
 
 export async function listOrders({ serviceDate, status } = {}) {
   const { rows } = await pool.query(
@@ -173,15 +206,29 @@ export async function getPaymentsOverview() {
 
 export async function simulatePaymentWebhook({ customerId, type, amountPaise }) {
   if (!customerId || !['TOPUP', 'REFUND'].includes(type) || !(Number(amountPaise) > 0)) {
-    throw new HttpError(400, 'VALIDATION_FAILED', 'customerId, type (TOPUP|REFUND) and amountPaise are required');
+    throw new HttpError(
+      400,
+      'VALIDATION_FAILED',
+      'customerId, type (TOPUP|REFUND) and amountPaise are required',
+    );
   }
 
-  const body = { eventId: crypto.randomUUID(), customerId, type, amountPaise: Number(amountPaise) };
+  const body = {
+    eventId: crypto.randomUUID(),
+    customerId,
+    type,
+    amountPaise: Number(amountPaise),
+  };
   const rawBody = Buffer.from(JSON.stringify(body));
   const timestamp = Math.floor(Date.now() / 1000);
   const signatureHeader = signPayload(rawBody, timestamp);
 
-  return processPaymentWebhook({ body, rawBody, signatureHeader, timestampHeader: String(timestamp) });
+  return processPaymentWebhook({
+    body,
+    rawBody,
+    signatureHeader,
+    timestampHeader: String(timestamp),
+  });
 }
 
 export async function getReconciliation(serviceDate) {

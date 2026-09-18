@@ -29,14 +29,20 @@ async function seedReadyOrder(serviceDate = '2025-08-12', price = 12000) {
 }
 
 async function seedRider(phone) {
-  const { rows } = await pool.query(`INSERT INTO riders (name, phone) VALUES ('Rider', $1) RETURNING id`, [phone]);
+  const { rows } = await pool.query(
+    `INSERT INTO riders (name, phone) VALUES ('Rider', $1) RETURNING id`,
+    [phone],
+  );
   return rows[0].id;
 }
 
 async function deliver(orderId, price = 12000) {
   const riderId = await seedRider('+919200000001');
   const claimed = await claimNextOrder(riderId);
-  await applyTransition(claimed.id, 'OUT_FOR_DELIVERY', { riderId, claimId: claimed.claim_id });
+  await applyTransition(claimed.id, 'OUT_FOR_DELIVERY', {
+    riderId,
+    claimId: claimed.claim_id,
+  });
   return applyTransition(claimed.id, 'DELIVERED', { riderId, claimId: claimed.claim_id });
 }
 
@@ -52,7 +58,10 @@ describe('charge on delivery', () => {
     const { orderId, customerId } = await seedReadyOrder('2025-08-12', 15000);
     await deliver(orderId, 15000);
 
-    const { rows } = await pool.query("SELECT * FROM payments WHERE order_id = $1 AND type = 'CHARGE'", [orderId]);
+    const { rows } = await pool.query(
+      "SELECT * FROM payments WHERE order_id = $1 AND type = 'CHARGE'",
+      [orderId],
+    );
     expect(rows).toHaveLength(1);
     expect(Number(rows[0].amount_paise)).toBe(15000);
     expect(rows[0].customer_id).toBe(customerId);
@@ -62,16 +71,26 @@ describe('charge on delivery', () => {
     const { orderId } = await seedReadyOrder();
     const riderId = await seedRider('+919200000002');
     const claimed = await claimNextOrder(riderId);
-    await applyTransition(claimed.id, 'OUT_FOR_DELIVERY', { riderId, claimId: claimed.claim_id });
+    await applyTransition(claimed.id, 'OUT_FOR_DELIVERY', {
+      riderId,
+      claimId: claimed.claim_id,
+    });
 
-    const first = await applyTransition(claimed.id, 'DELIVERED', { riderId, claimId: claimed.claim_id });
-    const retry = await applyTransition(claimed.id, 'DELIVERED', { riderId, claimId: claimed.claim_id });
+    const first = await applyTransition(claimed.id, 'DELIVERED', {
+      riderId,
+      claimId: claimed.claim_id,
+    });
+    const retry = await applyTransition(claimed.id, 'DELIVERED', {
+      riderId,
+      claimId: claimed.claim_id,
+    });
     expect(first.alreadyApplied).toBeUndefined();
     expect(retry.alreadyApplied).toBe(true);
 
-    const { rows } = await pool.query("SELECT count(*) FROM payments WHERE order_id = $1 AND type = 'CHARGE'", [
-      orderId,
-    ]);
+    const { rows } = await pool.query(
+      "SELECT count(*) FROM payments WHERE order_id = $1 AND type = 'CHARGE'",
+      [orderId],
+    );
     expect(Number(rows[0].count)).toBe(1);
   });
 });
@@ -93,27 +112,49 @@ describe('payment webhook', () => {
   });
 
   it('rejects a signature that does not match the body', async () => {
-    const { rows: customer } = await pool.query(`INSERT INTO customers (name, phone) VALUES ('P', 'p2') RETURNING id`);
-    const req = webhook({ eventId: 'evt-2', customerId: customer[0].id, type: 'TOPUP', amountPaise: 1000 });
+    const { rows: customer } = await pool.query(
+      `INSERT INTO customers (name, phone) VALUES ('P', 'p2') RETURNING id`,
+    );
+    const req = webhook({
+      eventId: 'evt-2',
+      customerId: customer[0].id,
+      type: 'TOPUP',
+      amountPaise: 1000,
+    });
     req.signatureHeader = 'sha256=deadbeef';
 
-    await expect(processPaymentWebhook(req)).rejects.toMatchObject({ status: 401, code: 'INVALID_SIGNATURE' });
+    await expect(processPaymentWebhook(req)).rejects.toMatchObject({
+      status: 401,
+      code: 'INVALID_SIGNATURE',
+    });
   });
 
   it('rejects a timestamp far outside the accepted window', async () => {
-    const { rows: customer } = await pool.query(`INSERT INTO customers (name, phone) VALUES ('P', 'p3') RETURNING id`);
+    const { rows: customer } = await pool.query(
+      `INSERT INTO customers (name, phone) VALUES ('P', 'p3') RETURNING id`,
+    );
     const req = webhook(
       { eventId: 'evt-3', customerId: customer[0].id, type: 'TOPUP', amountPaise: 1000 },
       { skewSeconds: 3600 },
     );
 
-    await expect(processPaymentWebhook(req)).rejects.toMatchObject({ status: 400, code: 'TIMESTAMP_OUT_OF_RANGE' });
+    await expect(processPaymentWebhook(req)).rejects.toMatchObject({
+      status: 400,
+      code: 'TIMESTAMP_OUT_OF_RANGE',
+    });
   });
 
   it('applies the same event exactly once no matter how many times it is delivered', async () => {
-    const { rows: customer } = await pool.query(`INSERT INTO customers (name, phone) VALUES ('P', 'p4') RETURNING id`);
+    const { rows: customer } = await pool.query(
+      `INSERT INTO customers (name, phone) VALUES ('P', 'p4') RETURNING id`,
+    );
     const customerId = customer[0].id;
-    const req = webhook({ eventId: 'evt-dup', customerId, type: 'TOPUP', amountPaise: 20000 });
+    const req = webhook({
+      eventId: 'evt-dup',
+      customerId,
+      type: 'TOPUP',
+      amountPaise: 20000,
+    });
 
     const first = await processPaymentWebhook(req);
     const second = await processPaymentWebhook(req);
@@ -123,7 +164,10 @@ describe('payment webhook', () => {
     expect(second.duplicate).toBe(true);
     expect(third.duplicate).toBe(true);
 
-    const { rows } = await pool.query('SELECT count(*) FROM payments WHERE provider_event_id = $1', ['evt-dup']);
+    const { rows } = await pool.query(
+      'SELECT count(*) FROM payments WHERE provider_event_id = $1',
+      ['evt-dup'],
+    );
     expect(Number(rows[0].count)).toBe(1);
 
     const balances = await balancesByCustomer();
@@ -131,11 +175,17 @@ describe('payment webhook', () => {
   });
 
   it('reaches the same balance regardless of the order two independent events are applied in', async () => {
-    const { rows: customer } = await pool.query(`INSERT INTO customers (name, phone) VALUES ('P', 'p5') RETURNING id`);
+    const { rows: customer } = await pool.query(
+      `INSERT INTO customers (name, phone) VALUES ('P', 'p5') RETURNING id`,
+    );
     const customerId = customer[0].id;
 
-    await processPaymentWebhook(webhook({ eventId: 'evt-a', customerId, type: 'TOPUP', amountPaise: 30000 }));
-    await processPaymentWebhook(webhook({ eventId: 'evt-b', customerId, type: 'REFUND', amountPaise: 5000 }));
+    await processPaymentWebhook(
+      webhook({ eventId: 'evt-a', customerId, type: 'TOPUP', amountPaise: 30000 }),
+    );
+    await processPaymentWebhook(
+      webhook({ eventId: 'evt-b', customerId, type: 'REFUND', amountPaise: 5000 }),
+    );
 
     const balances = await balancesByCustomer();
     expect(Number(balances.find((b) => b.id === customerId).balance_paise)).toBe(35000);
@@ -158,6 +208,9 @@ describe('reconciliation', () => {
 
     const report = await reconcileDate('2025-08-14');
     expect(report.ok).toBe(false);
-    expect(report.divergences).toContainEqual({ code: 'DELIVERED_ORDER_NO_CHARGE', orderId });
+    expect(report.divergences).toContainEqual({
+      code: 'DELIVERED_ORDER_NO_CHARGE',
+      orderId,
+    });
   });
 });

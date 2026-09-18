@@ -61,7 +61,9 @@ describe('applyTransition', () => {
   });
 
   it('rejects a transition on an order that does not exist', async () => {
-    await expect(applyTransition('00000000-0000-0000-0000-000000000000', 'CONFIRMED')).rejects.toMatchObject({
+    await expect(
+      applyTransition('00000000-0000-0000-0000-000000000000', 'CONFIRMED'),
+    ).rejects.toMatchObject({
       status: 404,
       code: 'NOT_FOUND',
     });
@@ -71,7 +73,9 @@ describe('applyTransition', () => {
     const orderId = await seedOrder();
     await expect(applyTransition(orderId, 'DELIVERED')).rejects.toThrow();
 
-    const { rows } = await pool.query('SELECT status FROM orders WHERE id = $1', [orderId]);
+    const { rows } = await pool.query('SELECT status FROM orders WHERE id = $1', [
+      orderId,
+    ]);
     expect(rows[0].status).toBe('PLACED');
   });
 });
